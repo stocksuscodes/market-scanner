@@ -1,0 +1,6 @@
+flask
+flask-cors
+pandas
+pandas_ta
+requests
+gunicorn
