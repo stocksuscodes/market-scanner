@@ -94,11 +94,11 @@ SECTORES = [
         "SNAP","PINS","MTCH","BMBL","SPOT","TTD","FUBO","PARA","SIRI","DISH",
         "ATVI","TTWO","EA","ZNGA","DKNG","PENN","GME","AMC","SKLZ","NTES",
     ]},
-    {"etf": "XLB2", "nome": "Cripto/Miners",  "tickers": [
+    {"etf": "MARA", "nome": "Cripto/Miners",  "tickers": [
         "MARA","RIOT","CIFR","HUT","BITF","CLSK","IREN","BTBT","WULF","CORZ",
         "HIVE","BTCS","MSTR","COIN","HOOD","ARBK","SDIG","BTOG","BTCM","GREE",
     ]},
-    {"etf": "XLY2", "nome": "EV Avançado",    "tickers": [
+    {"etf": "TSLA", "nome": "EV Avançado",    "tickers": [
         "RIVN","LCID","NIO","XPEV","LI","FSR","GOEV","MULN","ZEV","RIDE",
         "WKHS","HYLN","SOLO","MVST","IDEX","NKLA","ACHR","JOBY","LILM","SPCE",
     ]},
