@@ -1,4 +1,5 @@
-<!DOCTYPE html>
+# -*- coding: utf-8 -*-
+content = """<!DOCTYPE html>
 <html lang="pt">
 <head>
 <meta charset="UTF-8">
@@ -465,13 +466,7 @@ async function analyzeAI(i) {
   box.style.fontStyle = 'italic'; box.style.color = '#555';
   box.textContent = 'A consultar IA...';
   try {
-    const prompt = `És um analista técnico especializado em Wyckoff e SLJ. Analisa este ativo de forma concisa (3-4 linhas em português europeu):
-Ticker: ${s.ticker} | Sector: ${s.sector}
-Preço real: $${s.price} | SMA200: $${s.sma200} | EMA21: $${s.ema21}
-RSI: ${s.rsi} | ADX: ${s.adx} | ATR: $${s.atr} | Vol Ratio: ${s.vol_ratio}x
-Fase Wyckoff: ${s.fase} | Sinal SLJ: ${s.slj}
-Stop: $${s.stop} | Alvo: $${s.alvo} | R/R: ${s.rr}:1
-Foca na validade do sinal SLJ, contexto da fase Wyckoff e o que vigiar.`;
+    const prompt = `És um analista técnico especializado em Wyckoff e SLJ. Analisa este ativo de forma concisa (3-4 linhas em português europeu):\nTicker: ${s.ticker} | Sector: ${s.sector}\nPreço real: $${s.price} | SMA200: $${s.sma200} | EMA21: $${s.ema21}\nRSI: ${s.rsi} | ADX: ${s.adx} | ATR: $${s.atr} | Vol Ratio: ${s.vol_ratio}x\nFase Wyckoff: ${s.fase} | Sinal SLJ: ${s.slj}\nStop: $${s.stop} | Alvo: $${s.alvo} | R/R: ${s.rr}:1\nFoca na validade do sinal SLJ, contexto da fase Wyckoff e o que vigiar.`;
     const r = await fetch('/api/ai-analysis', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -493,3 +488,8 @@ loadSectores();
 </script>
 </body>
 </html>
+"""
+dst = r'C:\Users\Nuno Gueifão\Desktop\Python\scanner\static\index.html'
+with open(dst, 'w', encoding='utf-8') as f:
+    f.write(content)
+print('OK! Tamanho:', len(content))
