@@ -499,6 +499,8 @@ def api_ranking():
 def api_scan():
     body    = request.get_json() or {}
     tickers = body.get("tickers", [])
+    if os.getenv("RAILWAY_ENVIRONMENT"):
+        tickers = tickers[:50]
     p_min   = float(body.get("p_min",   5))
     p_max   = float(body.get("p_max",  100))
     adx_min = float(body.get("adx_min", 10))
