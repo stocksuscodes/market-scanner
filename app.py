@@ -70,6 +70,8 @@ _cache = {
     "total": 0,
     "timestamp": None,
     "running": False,
+    "ranking": [],          # sector ranking cache
+    "top5_sectors": [],     # top 5 sector names
 }
 
 def _run_full_scan_background():
@@ -79,11 +81,22 @@ def _run_full_scan_background():
     _cache["running"] = True
     print("  [CACHE] A iniciar scan completo em background...", flush=True)
     try:
+        # Step 1: Calculate sector ranking (Sector Rotation)
+        print("  [CACHE] A calcular ranking sectorial (momentum 10d)...", flush=True)
+        ranking = calcular_ranking(top_n=5)
+        _cache["ranking"] = ranking
+        top5 = [s["nome"] for s in ranking if s["top5"]]
+        _cache["top5_sectors"] = top5
+        print(f"  [CACHE] Top 5 sectores: {top5}", flush=True)
+
+        # Step 2: Only scan tickers from Top 5 sectors
         all_tickers = []
         for sec in SECTORES:
-            for t in sec["tickers"]:
-                all_tickers.append({"ticker": t, "etf": sec["etf"], "sector": sec["nome"]})
+            if sec["nome"] in top5:
+                for t in sec["tickers"]:
+                    all_tickers.append({"ticker": t, "etf": sec["etf"], "sector": sec["nome"]})
 
+        print(f"  [CACHE] A analisar {len(all_tickers)} tickers dos Top 5 sectores...", flush=True)
         sinais = []
         for item in all_tickers:
             resultado = analisar_ativo(
@@ -94,11 +107,12 @@ def _run_full_scan_background():
                 sinais.append(resultado)
             time.sleep(0.15)
 
+        # Step 3: Sort by Score SLJ descending within each top sector
         sinais.sort(key=lambda x: (-x["score_total"], -x["rr"]))
         _cache["sinais"]    = sinais
         _cache["total"]     = len(all_tickers)
         _cache["timestamp"] = datetime.utcnow()
-        print(f"  [CACHE] Scan completo: {len(sinais)} sinais de {len(all_tickers)} tickers", flush=True)
+        print(f"  [CACHE] Scan completo: {len(sinais)} sinais de {len(all_tickers)} tickers (Top 5 sectores)", flush=True)
     except Exception as e:
         print(f"  [CACHE] Erro: {e}", flush=True)
     finally:
@@ -508,9 +522,10 @@ def analisar_ativo(ticker, etf, sector_nome, p_min, p_max, adx_min, rsi_max):
 
 
 # ─────────────────────────────────────────────
-#  RANKING SECTORIAL
+#  RANKING SECTORIAL — Sector Rotation (Top 5)
 # ─────────────────────────────────────────────
-def calcular_ranking():
+def calcular_ranking(top_n: int = 5):
+    """Calcula momentum de 10 dias de cada ETF e devolve os Top N sectores."""
     ranking = []
     for sec in SECTORES:
         df = obter_dados_alpaca(sec["etf"], 30)
@@ -520,7 +535,18 @@ def calcular_ranking():
                          / float(df["Close"].iloc[-10]) * 100, 2)
         ranking.append({**sec, "perf": perf})
         time.sleep(0.1)
-    return sorted(ranking, key=lambda x: x["perf"], reverse=True)
+    ranking_sorted = sorted(ranking, key=lambda x: x["perf"], reverse=True)
+    # Tag each sector with its rank position
+    for i, sec in enumerate(ranking_sorted):
+        sec["rank"] = i + 1
+        sec["top5"] = i < top_n
+    return ranking_sorted
+
+
+def get_top5_sector_names() -> list:
+    """Returns ETF names of the Top 5 sectors by momentum (uses cache if available)."""
+    ranking = calcular_ranking(top_n=5)
+    return [s["nome"] for s in ranking if s["top5"]]
 
 
 # ─────────────────────────────────────────────
@@ -556,7 +582,8 @@ def api_mercado():
 
 @app.route("/api/ranking", methods=["GET"])
 def api_ranking():
-    return jsonify({"ranking": calcular_ranking()})
+    top_n = int(request.args.get("top_n", 5))
+    return jsonify({"ranking": calcular_ranking(top_n=top_n)})
 
 @app.route("/api/scan", methods=["POST"])
 def api_scan():
@@ -573,27 +600,64 @@ def api_scan():
             threading.Thread(target=_run_full_scan_background, daemon=True).start()
         if _cache["running"] and not _cache["sinais"]:
             return jsonify({"sinais": [], "total": 0, "message": "A calcular... aguarda 3-5 min e tenta de novo."})
-        # Filter cached results by user parameters
+
+        # Filter by user params (already filtered to Top 5 sectors in cache)
         filtered = [s for s in _cache["sinais"]
                     if p_min <= s["price"] <= p_max
                     and s["rsi"] <= rsi_max
                     and s["adx"] >= adx_min]
-        return jsonify({"sinais": filtered, "total": _cache["total"],
-                        "cached_at": str(_cache["timestamp"])})
 
-    # Local: run scan directly
+        # Group by sector, sorted by SLJ score descending within each sector
+        sectors_order = _cache["top5_sectors"]
+        sector_groups = {nome: [] for nome in sectors_order}
+        for s in filtered:
+            if s["sector"] in sector_groups:
+                sector_groups[s["sector"]].append(s)
+        # Sort tickers within each sector by score_total desc
+        for nome in sector_groups:
+            sector_groups[nome].sort(key=lambda x: (-x["score_total"], -x["rr"]))
+
+        # Flatten: sector order = ranking order, tickers within = SLJ score order
+        sinais_sorted = []
+        for nome in sectors_order:
+            sinais_sorted.extend(sector_groups.get(nome, []))
+
+        return jsonify({
+            "sinais": sinais_sorted,
+            "total": _cache["total"],
+            "cached_at": str(_cache["timestamp"]),
+            "top5_sectors": _cache["top5_sectors"],
+            "ranking": _cache["ranking"],
+        })
+
+    # Local: run scan directly — filter by Top 5 sectors on-the-fly
+    ranking = calcular_ranking(top_n=5)
+    top5 = [s["nome"] for s in ranking if s["top5"]]
+
+    # Only analyse tickers from Top 5 sectors
+    tickers_top5 = [item for item in tickers if item.get("sector", "") in top5]
+
     sinais = []
-    for item in tickers:
+    for item in tickers_top5:
         t   = item.get("ticker", "")
         etf = item.get("etf", "")
         sec = item.get("sector", "")
-        print(f"  → {t} ...", flush=True)
+        print(f"  → {t} ({sec}) ...", flush=True)
         resultado = analisar_ativo(t, etf, sec, p_min, p_max, adx_min, rsi_max)
         if resultado:
             sinais.append(resultado)
         time.sleep(0.15)
-    sinais.sort(key=lambda x: (-x["score_total"], -x["rr"]))
-    return jsonify({"sinais": sinais, "total": len(tickers)})
+
+    # Sort by sector rank first, then by SLJ score within each sector
+    sector_rank = {s["nome"]: s["rank"] for s in ranking}
+    sinais.sort(key=lambda x: (sector_rank.get(x["sector"], 99), -x["score_total"], -x["rr"]))
+
+    return jsonify({
+        "sinais": sinais,
+        "total": len(tickers_top5),
+        "top5_sectors": top5,
+        "ranking": ranking,
+    })
 
 @app.route("/api/cache/status", methods=["GET"])
 def api_cache_status():
@@ -602,6 +666,8 @@ def api_cache_status():
         "total": _cache["total"],
         "running": _cache["running"],
         "timestamp": str(_cache["timestamp"]),
+        "top5_sectors": _cache["top5_sectors"],
+        "ranking_snapshot": [{"nome": s["nome"], "etf": s["etf"], "perf": s["perf"], "rank": s["rank"], "top5": s["top5"]} for s in _cache["ranking"]],
     })
 
 @app.route("/api/preco/<ticker>", methods=["GET"])
@@ -630,6 +696,84 @@ def api_ai_analysis():
         return jsonify({"analysis": text})
     except Exception as e:
         return jsonify({"analysis": f"Erro IA: {e}"}), 200
+
+
+@app.route("/api/lookup", methods=["POST"])
+def api_lookup():
+    """Avalia um ticker individual sem filtros de preço, volume ou histórico mínimo."""
+    body   = request.get_json() or {}
+    ticker = body.get("ticker", "").upper().strip()
+    if not ticker:
+        return jsonify({"error": "Ticker em falta"}), 400
+
+    # Determinar sector/etf
+    info = TICKER_SECTOR_MAP.get(ticker, {"etf": "—", "sector": "Outro"})
+    etf  = info["etf"]
+    setor = info["sector"]
+
+    df = obter_dados_alpaca(ticker, HISTORY_DAYS)
+    if len(df) < 30:
+        return jsonify({"error": f"Dados insuficientes para {ticker} (apenas {len(df)} barras). Verifica se o ticker existe no Alpaca IEX."}), 200
+
+    preco = float(df["Close"].iloc[-1])
+
+    # Calcular indicadores com o que tivermos
+    df = compute_indicators(df)
+    last = df.iloc[-1]
+
+    sma200 = float(last["sma200"]) if pd.notna(last.get("sma200")) else None
+    ema21  = float(last["ema21"])  if pd.notna(last.get("ema21"))  else None
+    rsi    = float(last["rsi"])    if pd.notna(last.get("rsi"))    else None
+    atr    = float(last["atr"])    if pd.notna(last.get("atr"))    else None
+    adx    = float(last["adx"])    if pd.notna(last.get("adx"))    else 0.0
+
+    # Fallbacks se histórico curto
+    if sma200 is None: sma200 = preco
+    if ema21  is None: ema21  = preco
+    if rsi    is None: rsi    = 50.0
+    if atr    is None: atr    = preco * 0.02
+
+    ss, sn = score_simons(df)
+    ls, ln = score_livermore(df)
+    ps, pn = score_ptj(df)
+    ws, wn = score_wyckoff_module(df)
+    ms, mn = score_markov(df)
+    total  = ss + ls + ps + ws + ms
+
+    fase     = fase_wyckoff(preco, sma200, ema21, rsi, adx)
+    pullback = preco <= ema21 * 1.015
+    acima    = preco > sma200
+
+    if fase in ("Acumulação", "Spring") and pullback and acima and 30 < rsi < 75 and adx > 10:
+        slj = "LONG"
+    elif fase == "Distribuição" and rsi > 58:
+        slj = "SHORT"
+    else:
+        slj = "AGUARDAR"
+
+    stop  = round(preco - 2 * atr, 2)
+    alvo  = round(preco + 4 * atr, 2)
+    rr    = round((alvo - preco) / (preco - stop), 1) if preco > stop else 0
+    vol20 = float(df["Volume"].rolling(20).mean().iloc[-1]) if len(df) >= 20 else float(df["Volume"].mean())
+    vol_r = round(float(df["Volume"].iloc[-1]) / vol20, 2) if vol20 > 0 else 1.0
+    prev  = df.iloc[-2] if len(df) >= 2 else df.iloc[-1]
+    chg   = round((preco / float(prev["Close"]) - 1) * 100, 2)
+
+    return jsonify({
+        "ticker": ticker, "etf": etf, "sector": setor,
+        "price": round(preco, 2), "chg_pct": chg,
+        "sma200": round(sma200, 2), "ema21": round(ema21, 2),
+        "rsi": round(rsi, 1), "adx": round(adx, 1),
+        "atr": round(atr, 2), "vol_ratio": vol_r,
+        "stop": stop, "alvo": alvo, "rr": rr,
+        "fase": fase, "slj": slj,
+        "score_total": total, "score_simons": ss, "score_livermore": ls,
+        "score_ptj": ps, "score_wyckoff": ws, "score_markov": ms,
+        "notes_simons": sn, "notes_livermore": ln, "notes_ptj": pn,
+        "notes_wyckoff": wn, "notes_markov": mn,
+        "signal_label": "FORTE" if total >= 12 else "MÉDIO" if total >= 7 else "FRACO",
+        "bars": len(df),
+    })
 
 
 # ─────────────────────────────────────────────

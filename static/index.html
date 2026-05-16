@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Wyckoff · SLJ Scanner</title>
+<title>Market Scanner Pro</title>
 <style>
   :root {
     --bg: #ffffff;
@@ -135,6 +135,51 @@
   .progress-bar { height: 2px; background: var(--border); border-radius: 1px; margin: 10px auto; max-width: 200px; overflow: hidden; }
   .progress-fill { height: 100%; background: var(--green); border-radius: 1px; transition: width .3s; }
 
+  /* ── TICKER LOOKUP ── */
+  .lookup-panel { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 1.5rem; }
+  .lookup-row { display: flex; gap: 8px; align-items: center; }
+  .lookup-input { flex: 1; background: var(--bg3); border: 1px solid var(--border2); border-radius: 6px; color: var(--text); font-family: var(--font); font-size: 13px; padding: 8px 12px; text-transform: uppercase; letter-spacing: .08em; }
+  .lookup-input:focus { outline: none; border-color: #555; }
+  .lookup-input::placeholder { color: var(--text3); text-transform: none; letter-spacing: 0; }
+  .lookup-btn { padding: 8px 18px; background: var(--bg3); border: 1px solid var(--border2); border-radius: 6px; color: var(--text); font-family: var(--font); font-size: 12px; cursor: pointer; white-space: nowrap; transition: all .15s; }
+  .lookup-btn:hover { background: #222; border-color: #555; }
+  .lookup-btn:disabled { opacity: .4; cursor: not-allowed; }
+  .lookup-result { margin-top: 14px; display: none; }
+  .lookup-card { border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; background: var(--bg); }
+  .lookup-card.long-card  { border-left: 3px solid var(--green); }
+  .lookup-card.short-card { border-left: 3px solid var(--red); }
+  .lookup-card.wait-card  { border-left: 3px solid var(--amber); }
+  .lookup-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+  .lookup-ticker { font-size: 22px; font-weight: 700; }
+  .lookup-price  { font-size: 16px; font-weight: 600; }
+  .lookup-meta   { font-size: 10px; color: var(--text3); margin-left: auto; }
+  .lookup-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 12px; }
+  .lookup-scores { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .lookup-notes { font-size: 10px; color: var(--text3); line-height: 1.8; }
+  .lookup-notes div::before { content: "• "; }
+  .lookup-actions { display: flex; gap: 8px; margin-top: 12px; }
+  .lookup-error { color: var(--red); font-size: 12px; margin-top: 10px; }
+  .lookup-loading { color: var(--text3); font-size: 11px; margin-top: 10px; display: flex; align-items: center; gap: 8px; }
+
+
+  /* ── SIGNAL SCAN (FMP) ── */
+  .signal-section { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .signal-section-title { font-size: 9px; letter-spacing: 2px; color: var(--text3); text-transform: uppercase; margin-bottom: 10px; }
+  .signal-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px; }
+  .signal-lbl { font-size: 9px; color: var(--text3); margin-bottom: 4px; letter-spacing: 1px; }
+  .signal-dots { display: flex; gap: 3px; align-items: center; }
+  .signal-dot { width: 7px; height: 7px; border-radius: 50%; transition: all .2s; }
+  .signal-badge { display: inline-block; padding: 3px 10px; border-radius: 4px; font-size: 10px; font-weight: 700; letter-spacing: 1px; }
+  .sig-strong-buy  { background:#003820; border:1px solid #00e676; color:#00e676; }
+  .sig-buy         { background:#002a18; border:1px solid #69f0ae; color:#69f0ae; }
+  .sig-neutral     { background:#1a1a2a; border:1px solid #4a4a6a; color:#8888aa; }
+  .sig-sell        { background:#2a0a0a; border:1px solid #ff6b6b; color:#ff6b6b; }
+  .sig-strong-sell { background:#3a0000; border:1px solid #ff1744; color:#ff1744; }
+  .signal-composite { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .signal-bar-wrap { flex: 1; height: 4px; background: var(--bg2); border-radius: 2px; position: relative; overflow: hidden; }
+  .signal-bar-fill { position: absolute; height: 100%; border-radius: 2px; }
+  .signal-loading { font-size: 10px; color: var(--text3); font-style: italic; }
+
   /* ── FOOTER ── */
   .footer { display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; padding-top: 12px; border-top: 1px solid var(--border); flex-wrap: wrap; gap: 8px; }
   .footer-note { font-size: 9px; color: var(--text3); }
@@ -154,8 +199,8 @@
   <!-- HEADER -->
   <div class="header">
     <div class="header-left">
-      <h1>WYCKOFF · SLJ SCANNER</h1>
-      <p>Alpaca Markets · Dados Reais · Sector Rotation</p>
+      <h1>MARKET SCANNER PRO</h1>
+      <p>SLJ · Simons · Livermore · PTJ · Wyckoff · Markov</p>
     </div>
     <div class="live-badge"><span class="live-dot"></span>ALPACA LIVE</div>
   </div>
@@ -182,6 +227,17 @@
     <div class="metric"><div class="metric-lbl">Sinais LONG</div><div class="metric-val green" id="m-long">—</div><div class="metric-sub">compra</div></div>
     <div class="metric"><div class="metric-lbl">Melhor R/R</div><div class="metric-val" id="m-rr">—</div><div class="metric-sub">risco/recomp.</div></div>
     <div class="metric"><div class="metric-lbl">VTI / Mercado</div><div class="metric-val" id="m-market">—</div><div class="metric-sub" id="m-market-sub">—</div></div>
+  </div>
+
+  <!-- TICKER LOOKUP -->
+  <div class="lookup-panel">
+    <div class="config-title">Pesquisa rápida por ticker</div>
+    <div class="lookup-row">
+      <input class="lookup-input" id="lookup-input" type="text" placeholder="ex: NVDA, PLTR, AMD..." maxlength="10"
+        onkeydown="if(event.key==='Enter') lookupTicker()">
+      <button class="lookup-btn" id="lookup-btn" onclick="lookupTicker()">▶ Avaliar</button>
+    </div>
+    <div class="lookup-result" id="lookup-result"></div>
   </div>
 
   <!-- RANK -->
@@ -487,6 +543,202 @@ Foca na validade do sinal SLJ, contexto da fase Wyckoff e o que vigiar.`;
 
 function openTradingView(ticker) {
   window.open(`https://www.tradingview.com/chart/?symbol=${ticker}`, '_blank');
+}
+
+async function lookupTicker() {
+  const input = document.getElementById('lookup-input');
+  const ticker = input.value.trim().toUpperCase();
+  if (!ticker) return;
+
+  const btn    = document.getElementById('lookup-btn');
+  const result = document.getElementById('lookup-result');
+
+  btn.disabled = true;
+  btn.textContent = '⟳ A avaliar...';
+  result.style.display = 'block';
+  result.innerHTML = '<div class="lookup-loading"><div class="spinner" style="width:14px;height:14px;border-width:2px"></div> A obter dados do Alpaca para ' + ticker + '...</div>';
+
+  try {
+    const [r, fmpData] = await Promise.all([
+      fetch('/api/lookup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticker })
+      }),
+      fetchFmpSignal(ticker)
+    ]);
+    const data = await r.json();
+
+    if (data.error) {
+      result.innerHTML = '<div class="lookup-error">' + data.error + '</div>';
+    } else {
+      const s = data;
+      lastSignals = lastSignals.filter(x => x.ticker !== s.ticker);
+      lastSignals.unshift(s);
+      const cls  = s.slj === 'LONG' ? 'long-card' : s.slj === 'SHORT' ? 'short-card' : 'wait-card';
+      const scls = s.slj === 'LONG' ? 's-long'    : s.slj === 'SHORT' ? 's-short'    : 's-wait';
+      const pcls = PHASE_CLASS[s.fase] || 'p-tst';
+      const chgColor = s.chg_pct >= 0 ? 'color:var(--green)' : 'color:var(--red)';
+      const chgSign  = s.chg_pct >= 0 ? '+' : '';
+      const allNotes = (s.notes_simons||[]).concat(s.notes_livermore||[]).concat(s.notes_ptj||[]).concat(s.notes_wyckoff||[]).concat(s.notes_markov||[]);
+
+      result.innerHTML = `
+        <div class="lookup-card ${cls}">
+          <div class="lookup-header">
+            <span class="lookup-ticker">${s.ticker}</span>
+            <span class="lookup-price">$${s.price.toFixed(2)}</span>
+            <span style="font-size:11px;${chgColor}">${chgSign}${s.chg_pct}%</span>
+            <span class="sbadge ${scls}">${s.slj}</span>
+            <span class="pbadge ${pcls}">${s.fase}</span>
+            <span class="lookup-meta">${s.sector} · ${s.etf}</span>
+          </div>
+
+          <div class="lookup-grid">
+            <div><div class="d-lbl">Score SLJ</div><div class="d-val" style="color:${s.score_total>=12?'var(--red)':s.score_total>=7?'var(--amber)':'var(--text3)'}">${s.score_total}/15</div></div>
+            <div><div class="d-lbl">RSI</div><div class="d-val ${s.rsi<42?'green':s.rsi>55?'red':''}">${s.rsi}</div></div>
+            <div><div class="d-lbl">ADX</div><div class="d-val">${s.adx}</div></div>
+            <div><div class="d-lbl">R/R</div><div class="d-val ${s.rr>=2?'green':''}">${s.rr}:1</div></div>
+            <div><div class="d-lbl">Vol Ratio</div><div class="d-val ${s.vol_ratio>1.5?'green':''}">${s.vol_ratio}x</div></div>
+            <div><div class="d-lbl">SMA 200</div><div class="d-val">$${s.sma200}</div></div>
+            <div><div class="d-lbl">EMA 21</div><div class="d-val">$${s.ema21}</div></div>
+            <div><div class="d-lbl">ATR</div><div class="d-val">$${s.atr}</div></div>
+            <div><div class="d-lbl">Stop</div><div class="d-val red">$${s.stop}</div></div>
+            <div><div class="d-lbl">Alvo</div><div class="d-val green">$${s.alvo}</div></div>
+          </div>
+
+          <div class="lookup-scores">
+            <span style="font-size:9px;padding:2px 7px;border-radius:3px;background:#e0f2fe;color:#0369a1;font-weight:600;">Simons ${s.score_simons}/3</span>
+            <span style="font-size:9px;padding:2px 7px;border-radius:3px;background:#dcfce7;color:#15803d;font-weight:600;">Livermore ${s.score_livermore}/3</span>
+            <span style="font-size:9px;padding:2px 7px;border-radius:3px;background:#f3e8ff;color:#7e22ce;font-weight:600;">PTJ ${s.score_ptj}/3</span>
+            <span style="font-size:9px;padding:2px 7px;border-radius:3px;background:#fef9c3;color:#854d0e;font-weight:600;">Wyckoff ${s.score_wyckoff}/3</span>
+            <span style="font-size:9px;padding:2px 7px;border-radius:3px;background:#fee2e2;color:#b91c1c;font-weight:600;">Markov ${s.score_markov}/3</span>
+          </div>
+
+          ${allNotes.length ? `<div class="lookup-notes">${allNotes.map(n=>`<div>${n}</div>`).join('')}</div>` : ''}
+
+          <div class="lookup-actions">
+            <button class="d-btn" onclick="lookupAnalyzeAI('${s.ticker}')">⬡ Analisar com IA</button>
+            <button class="d-btn" onclick="window.open('https://www.tradingview.com/chart/?symbol=${s.ticker}','_blank')">↗ TradingView</button>
+          </div>
+          <div id="lookup-ai-box" style="margin-top:10px;font-size:11px;color:var(--text3);display:none"></div>
+          ${renderFmpSection(fmpData)}
+        </div>`;
+    }
+  } catch(e) {
+    result.innerHTML = '<div class="lookup-error">Erro: ' + e.message + '</div>';
+  }
+
+  btn.disabled = false;
+  btn.textContent = '▶ Avaliar';
+}
+
+async function lookupAnalyzeAI(ticker) {
+  const box = document.getElementById('lookup-ai-box');
+  box.style.display = 'block';
+  box.style.fontStyle = 'italic';
+  box.textContent = 'A consultar IA...';
+  // Reuse the last scan data for this ticker
+  const s = (lastSignals.find(x => x.ticker === ticker)) || {};
+  if (!s.ticker) { box.textContent = 'Corre a avaliação primeiro.'; return; }
+  try {
+    const prompt = `És um analista técnico especializado em Wyckoff e SLJ. Analisa este ativo de forma concisa (3-4 linhas em português europeu):
+Ticker: ${s.ticker} | Sector: ${s.sector}
+Preço: $${s.price} | SMA200: $${s.sma200} | EMA21: $${s.ema21}
+RSI: ${s.rsi} | ADX: ${s.adx} | ATR: $${s.atr} | Vol Ratio: ${s.vol_ratio}x
+Fase Wyckoff: ${s.fase} | Sinal SLJ: ${s.slj} | Score: ${s.score_total}/15
+Stop: $${s.stop} | Alvo: $${s.alvo} | R/R: ${s.rr}:1`;
+    const r = await fetch('/api/ai-analysis', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
+    });
+    const d = await r.json();
+    box.style.fontStyle = 'normal';
+    box.textContent = d.analysis || 'Sem resposta.';
+  } catch(e) {
+    box.textContent = 'Erro IA: ' + e.message;
+  }
+}
+
+
+// ── SIGNAL SCAN (FMP) ─────────────────────────
+const FMP_KEY = "83nbGo3DBPdL6g83mmhXNpHlxO9ar65c";
+const FMP_BASE = "https://financialmodelingprep.com/api/v3";
+
+function fmpDots(value, total, isBull) {
+  const absVal = Math.abs(value || 0);
+  const filled = Math.round((absVal / 10) * total);
+  let html = '<div class="signal-dots">';
+  for (let i = 0; i < total; i++) {
+    const active = i < filled;
+    const color = isBull ? (active ? '#00e676' : '#1a3a2a') : (active ? '#ff1744' : '#3a1a1a');
+    html += `<div class="signal-dot" style="background:${color};opacity:${active?1:0.3};box-shadow:${active?'0 0 4px '+color:'none'}"></div>`;
+  }
+  return html + '</div>';
+}
+
+function fmpSignalClass(s) {
+  return {STRONG_BUY:'sig-strong-buy',BUY:'sig-buy',NEUTRAL:'sig-neutral',SELL:'sig-sell',STRONG_SELL:'sig-strong-sell'}[s]||'sig-neutral';
+}
+function fmpSignalLabel(s) {
+  return {STRONG_BUY:'STRONG BUY',BUY:'BUY',NEUTRAL:'NEUTRAL',SELL:'SELL',STRONG_SELL:'STRONG SELL'}[s]||'NEUTRAL';
+}
+function computeFmpSignal(t,m,v) {
+  const s = (t||0)+(m||0)*0.8+(v||0)*0.5;
+  if(s>=12) return 'STRONG_BUY'; if(s>=5) return 'BUY';
+  if(s<=-12) return 'STRONG_SELL'; if(s<=-5) return 'SELL';
+  return 'NEUTRAL';
+}
+function computeFmpTrend(h,p=14) {
+  if(!h||h.length<p+1) return null;
+  const pr=h.slice(0,p+1).map(d=>d.close);
+  return Math.max(-10,Math.min(10,Math.round(((pr[0]-pr[p])/pr[p])*100*1.5)));
+}
+function computeFmpMomentum(h,p=10) {
+  if(!h||h.length<p+2) return null;
+  const pr=h.slice(0,p+2).map(d=>d.close);
+  const r1=((pr[0]-pr[p])/pr[p])*100, r2=((pr[1]-pr[p+1])/pr[p+1])*100;
+  return Math.max(-10,Math.min(10,Math.round((r1-r2)*3)));
+}
+function computeFmpVolume(h,p=10) {
+  if(!h||h.length<p+1) return null;
+  const v=h.slice(0,p+1).map(d=>d.volume);
+  const avg=v.slice(1).reduce((a,b)=>a+b,0)/p;
+  return Math.max(-10,Math.min(10,Math.round((v[0]/avg-1)*10)));
+}
+async function fetchFmpSignal(ticker) {
+  try {
+    const [qRes,hRes] = await Promise.all([
+      fetch(`${FMP_BASE}/quote/${ticker}?apikey=${FMP_KEY}`),
+      fetch(`${FMP_BASE}/historical-price-full/${ticker}?timeseries=30&apikey=${FMP_KEY}`)
+    ]);
+    const hData = await hRes.json();
+    const hist = hData.historical||[];
+    const trend=computeFmpTrend(hist), momentum=computeFmpMomentum(hist), volume=computeFmpVolume(hist);
+    const signal=computeFmpSignal(trend,momentum,volume);
+    return {trend,momentum,volume,signal,composite:(trend||0)+(momentum||0)+(volume||0)};
+  } catch(e) { return null; }
+}
+function renderFmpSection(fmp) {
+  if(!fmp) return '<div class="signal-section"><div class="signal-loading">Signal Scan indisponível</div></div>';
+  const sc=fmpSignalClass(fmp.signal), sl=fmpSignalLabel(fmp.signal);
+  const c=fmp.composite, barPct=Math.abs(c)/30*50, barColor=c>=0?'#00e676':'#ff1744';
+  const barLeft=c>=0?'50%':`${50-barPct}%`;
+  return `<div class="signal-section">
+    <div class="signal-section-title">⬡ Signal Scan — Trend · Momentum · Volume (FMP)</div>
+    <div class="signal-grid">
+      <div><div class="signal-lbl">TREND</div>${fmpDots(fmp.trend,5,(fmp.trend||0)>=0)}</div>
+      <div><div class="signal-lbl">MOMENTUM</div>${fmpDots(fmp.momentum,6,(fmp.momentum||0)>=0)}</div>
+      <div><div class="signal-lbl">VOLUME STR</div>${fmpDots(fmp.volume,5,(fmp.volume||0)>=0)}</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <span class="signal-badge ${sc}">${sl}</span>
+      <div class="signal-composite" style="flex:1;min-width:120px;">
+        <div class="signal-bar-wrap"><div class="signal-bar-fill" style="left:${barLeft};width:${barPct}%;background:${barColor}"></div></div>
+        <span style="font-size:10px;color:${barColor};min-width:28px;">${c>=0?'+':''}${c}</span>
+      </div>
+    </div>
+  </div>`;
 }
 
 loadSectores();
