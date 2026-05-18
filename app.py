@@ -267,6 +267,8 @@ def compute_indicators(df):
     df["ma20"]     = compute_sma(c, MA_SHORT)
     df["ma200"]    = compute_sma(c, MA_LONG)
     df["ema21"]    = compute_ema(c, 21)
+    df["sma50"]    = compute_sma(c, 50)
+    df["sma150"]   = compute_sma(c, 150)
     df["sma200"]   = compute_sma(c, 200)
     df["vol_ma20"] = df["Volume"].rolling(MA_SHORT).mean()
     df["rsi"]      = compute_rsi(c)
@@ -698,6 +700,104 @@ def api_ai_analysis():
         return jsonify({"analysis": f"Erro IA: {e}"}), 200
 
 
+
+# ─────────────────────────────────────────────
+#  MINERVINI TREND TEMPLATE (0-8 pts)
+# ─────────────────────────────────────────────
+def score_minervini(df):
+    """
+    Calcula o Trend Template de Minervini (critérios técnicos disponíveis).
+    Máximo 6 pts (sem earnings/revenue/margins que precisam de API externa).
+    Retorna (score, notes, vcp_detected)
+    """
+    score, notes = 0, []
+    if len(df) < 10:
+        return 0, [], False
+
+    last   = df.iloc[-1]
+    preco  = float(last["Close"])
+    sma50  = float(last["sma50"])  if pd.notna(last.get("sma50"))  else None
+    sma150 = float(last["sma150"]) if pd.notna(last.get("sma150")) else None
+    sma200 = float(last["sma200"]) if pd.notna(last.get("sma200")) else None
+
+    # Critério 1 — Preço acima SMA 50
+    if sma50 and preco > sma50:
+        score += 1
+        notes.append("Acima SMA50 ✓")
+
+    # Critério 2 — Preço acima SMA 150
+    if sma150 and preco > sma150:
+        score += 1
+        notes.append("Acima SMA150 ✓")
+
+    # Critério 3 — Preço acima SMA 200
+    if sma200 and preco > sma200:
+        score += 1
+        notes.append("Acima SMA200 ✓")
+
+    # Critério 4 — SMA50 > SMA150 (momentum a construir)
+    if sma50 and sma150 and sma50 > sma150:
+        score += 1
+        notes.append("SMA50 > SMA150 ✓")
+
+    # Critério 5 — SMA150 > SMA200 (tendência sustentada)
+    if sma150 and sma200 and sma150 > sma200:
+        score += 1
+        notes.append("SMA150 > SMA200 ✓")
+
+    # Critério 6 — SMA200 a subir (slope positivo 20 dias)
+    if sma200 and len(df) >= 220:
+        sma200_20d_ago = float(df["sma200"].iloc[-21]) if pd.notna(df["sma200"].iloc[-21]) else None
+        if sma200_20d_ago and sma200 > sma200_20d_ago:
+            score += 1
+            notes.append("SMA200 a subir ✓")
+
+    # Critério 7 — Dentro de 25% do máximo 52 semanas
+    if len(df) >= 252:
+        high52 = float(df["High"].rolling(252).max().iloc[-1])
+        if high52 > 0 and preco >= high52 * 0.75:
+            score += 1
+            notes.append(f"Perto máx 52s ({round(preco/high52*100)}%) ✓")
+    elif len(df) >= 30:
+        high_avail = float(df["High"].max())
+        if high_avail > 0 and preco >= high_avail * 0.75:
+            score += 1
+            notes.append("Perto máximo histórico ✓")
+
+    # Critério 8 — ADX > 20 (força de tendência, proxy de Relative Strength)
+    adx = float(last["adx"]) if pd.notna(last.get("adx")) else 0
+    if adx >= 20:
+        score += 1
+        notes.append(f"ADX {round(adx,1)} — tendência forte ✓")
+
+    # VCP Detection — contracções progressivas (mínimo 2)
+    vcp_detected = False
+    vcp_note = ""
+    if len(df) >= 60:
+        closes = df["Close"].values
+        # Encontrar pullbacks nos últimos 60 dias
+        pullbacks = []
+        window = 10
+        for i in range(window, len(closes) - window):
+            local_max_before = max(closes[max(0,i-window):i])
+            local_min = closes[i]
+            local_max_after = max(closes[i:min(len(closes),i+window)])
+            if local_min < local_max_before * 0.97 and local_min < local_max_after * 0.97:
+                pct_drop = (local_max_before - local_min) / local_max_before * 100
+                if 2 < pct_drop < 40:
+                    pullbacks.append(round(pct_drop, 1))
+
+        # Verificar se os pullbacks são progressivamente menores (VCP)
+        if len(pullbacks) >= 2:
+            contracting = all(pullbacks[i] > pullbacks[i+1] for i in range(len(pullbacks)-1))
+            if contracting:
+                vcp_detected = True
+                vcp_note = f"VCP detectado: {' → '.join(str(p)+'%' for p in pullbacks[-3:])}"
+                notes.append(vcp_note)
+
+    return score, notes, vcp_detected
+
+
 @app.route("/api/lookup", methods=["POST"])
 def api_lookup():
     """Avalia um ticker individual sem filtros de preço, volume ou histórico mínimo."""
@@ -759,6 +859,10 @@ def api_lookup():
     prev  = df.iloc[-2] if len(df) >= 2 else df.iloc[-1]
     chg   = round((preco / float(prev["Close"]) - 1) * 100, 2)
 
+    # Minervini Trend Template
+    ms_score, ms_notes, ms_vcp = score_minervini(df)
+    ms_label = "FORTE" if ms_score >= 6 else "MÉDIO" if ms_score >= 4 else "FRACO"
+
     return jsonify({
         "ticker": ticker, "etf": etf, "sector": setor,
         "price": round(preco, 2), "chg_pct": chg,
@@ -773,6 +877,8 @@ def api_lookup():
         "notes_wyckoff": wn, "notes_markov": mn,
         "signal_label": "FORTE" if total >= 12 else "MÉDIO" if total >= 7 else "FRACO",
         "bars": len(df),
+        "ms_score": ms_score, "ms_label": ms_label,
+        "ms_notes": ms_notes, "ms_vcp": ms_vcp,
     })
 
 

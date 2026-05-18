@@ -180,6 +180,20 @@
   .signal-bar-fill { position: absolute; height: 100%; border-radius: 2px; }
   .signal-loading { font-size: 10px; color: var(--text3); font-style: italic; }
 
+  /* ── MINERVINI ── */
+  .mini-section { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .mini-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+  .mini-score { font-size: 18px; font-weight: 700; }
+  .mini-badge { display: inline-block; padding: 3px 10px; border-radius: 4px; font-size: 10px; font-weight: 700; letter-spacing: 1px; }
+  .mini-forte { background:#003820; border:1px solid #00e676; color:#00e676; }
+  .mini-medio { background:#2a1f00; border:1px solid #ffd600; color:#ffd600; }
+  .mini-fraco { background:#2a0a0a; border:1px solid #ff6b6b; color:#ff6b6b; }
+  .mini-bar { display: flex; gap: 4px; margin-bottom: 8px; }
+  .mini-bar-seg { height: 6px; flex: 1; border-radius: 2px; }
+  .mini-notes { font-size: 10px; color: var(--text3); line-height: 1.8; }
+  .mini-notes div::before { content: "• "; }
+  .mini-vcp { margin-top: 6px; font-size: 10px; padding: 4px 10px; border-radius: 4px; background:#002a18; border:1px solid #00e676; color:#00e676; display:inline-block; }
+
   /* ── FOOTER ── */
   .footer { display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; padding-top: 12px; border-top: 1px solid var(--border); flex-wrap: wrap; gap: 8px; }
   .footer-note { font-size: 9px; color: var(--text3); }
@@ -559,15 +573,18 @@ async function lookupTicker() {
   result.innerHTML = '<div class="lookup-loading"><div class="spinner" style="width:14px;height:14px;border-width:2px"></div> A obter dados do Alpaca para ' + ticker + '...</div>';
 
   try {
-    const [r, fmpData] = await Promise.all([
-      fetch('/api/lookup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ticker })
-      }),
-      fetchFmpSignal(ticker)
-    ]);
+    const r = await fetch('/api/lookup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ticker })
+    });
     const data = await r.json();
+    // Signal Scan data comes from Alpaca backend (no FMP needed)
+    const fmpData = data.sig_signal ? {
+      trend: data.sig_trend, momentum: data.sig_momentum,
+      volume: data.sig_volume, composite: data.sig_composite,
+      signal: data.sig_signal
+    } : null;
 
     if (data.error) {
       result.innerHTML = '<div class="lookup-error">' + data.error + '</div>';
@@ -621,6 +638,7 @@ async function lookupTicker() {
             <button class="d-btn" onclick="window.open('https://www.tradingview.com/chart/?symbol=${s.ticker}','_blank')">↗ TradingView</button>
           </div>
           <div id="lookup-ai-box" style="margin-top:10px;font-size:11px;color:var(--text3);display:none"></div>
+          ${renderMinerviniSection(s)}
           ${renderFmpSection(fmpData)}
         </div>`;
     }
@@ -719,6 +737,34 @@ async function fetchFmpSignal(ticker) {
     return {trend,momentum,volume,signal,composite:(trend||0)+(momentum||0)+(volume||0)};
   } catch(e) { return null; }
 }
+function renderMinerviniSection(s) {
+  if (!s || s.ms_score === undefined) return '';
+  const score = s.ms_score || 0;
+  const label = s.ms_label || 'FRACO';
+  const cls   = label === 'FORTE' ? 'mini-forte' : label === 'MÉDIO' ? 'mini-medio' : 'mini-fraco';
+  const notes = s.ms_notes || [];
+  const vcp   = s.ms_vcp;
+
+  // Bar segments — 8 total
+  let bars = '';
+  for (let i = 0; i < 8; i++) {
+    const filled = i < score;
+    const color  = filled ? (score >= 6 ? '#00e676' : score >= 4 ? '#ffd600' : '#ff6b6b') : '#1e2d3d';
+    bars += `<div class="mini-bar-seg" style="background:${color}"></div>`;
+  }
+
+  return `<div class="mini-section">
+    <div style="font-size:9px;letter-spacing:2px;color:var(--text3);text-transform:uppercase;margin-bottom:8px;">▦ Minervini Trend Template</div>
+    <div class="mini-header">
+      <span class="mini-score" style="color:${score>=6?'#00e676':score>=4?'#ffd600':'#ff6b6b'}">${score}/8</span>
+      <span class="mini-badge ${cls}">${label}</span>
+    </div>
+    <div class="mini-bar">${bars}</div>
+    ${notes.length ? `<div class="mini-notes">${notes.filter(n=>!n.includes('VCP')).map(n=>`<div>${n}</div>`).join('')}</div>` : ''}
+    ${vcp ? `<div class="mini-vcp">⟳ ${notes.find(n=>n.includes('VCP'))||'VCP detectado'}</div>` : ''}
+  </div>`;
+}
+
 function renderFmpSection(fmp) {
   if(!fmp) return '<div class="signal-section"><div class="signal-loading">Signal Scan indisponível</div></div>';
   const sc=fmpSignalClass(fmp.signal), sl=fmpSignalLabel(fmp.signal);
