@@ -205,6 +205,19 @@
   .signal-bar-fill { position: absolute; height: 100%; border-radius: 2px; }
   .signal-loading { font-size: 10px; color: var(--text3); font-style: italic; }
 
+  /* ── RESUMO IA ── */
+  .resumo-panel { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 1.5rem; }
+  .resumo-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .resumo-title { font-size: 9px; letter-spacing: 2px; color: var(--text3); text-transform: uppercase; }
+  .resumo-badge { font-size: 9px; padding: 2px 8px; border-radius: 3px; }
+  .resumo-bullish  { background:#003820; border:1px solid #00e676; color:#00e676; }
+  .resumo-bearish  { background:#3a0000; border:1px solid #ff1744; color:#ff1744; }
+  .resumo-neutro   { background:#1a1a2a; border:1px solid #ffd600; color:#ffd600; }
+  .resumo-text { font-size: 12px; color: var(--text); line-height: 1.8; white-space: pre-wrap; }
+  .resumo-stats { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+  .resumo-stat { font-size: 10px; }
+  .resumo-stat span { font-weight: 700; }
+
   /* ── MINERVINI ── */
   .mini-section { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
   .mini-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
@@ -299,6 +312,17 @@
   <!-- RESULTS -->
   <div id="results">
     <div class="empty-state">Configura os parâmetros e clica em "Executar scan"</div>
+  </div>
+
+  <!-- RESUMO IA -->
+  <div class="resumo-panel" id="resumo-panel" style="display:none">
+    <div class="resumo-header">
+      <div class="resumo-title">⬡ Resumo do Scan — Análise IA</div>
+      <span class="resumo-badge" id="resumo-badge"></span>
+      <span style="font-size:9px;color:var(--text3);margin-left:auto" id="resumo-ts"></span>
+    </div>
+    <div class="resumo-stats" id="resumo-stats"></div>
+    <div class="resumo-text" id="resumo-text">A gerar resumo...</div>
   </div>
 
   <!-- FOOTER -->
@@ -518,6 +542,7 @@ async function runScan() {
     document.getElementById('m-rr').textContent    = signals.length ? signals[0].rr + 'x' : '—';
 
     renderResults(signals);
+    gerarResumo(signals, data.ranking || [], data.total || 0);
   } catch(e) {
     clearInterval(progInterval);
     document.getElementById('results').innerHTML =
@@ -773,6 +798,63 @@ Stop: $${s.stop} | Alvo: $${s.alvo} | R/R: ${s.rr}:1`;
   }
 }
 
+
+// ── RESUMO IA ─────────────────────────────────
+async function gerarResumo(sinais, ranking, total) {
+  const panel = document.getElementById('resumo-panel');
+  const textEl = document.getElementById('resumo-text');
+  const badgeEl = document.getElementById('resumo-badge');
+  const statsEl = document.getElementById('resumo-stats');
+  const tsEl = document.getElementById('resumo-ts');
+
+  panel.style.display = 'block';
+  textEl.textContent = 'A gerar resumo...';
+  badgeEl.textContent = '';
+  tsEl.textContent = new Date().toLocaleTimeString('pt-PT');
+
+  const nLong  = sinais.filter(s => s.slj === 'LONG').length;
+  const nShort = sinais.filter(s => s.slj === 'SHORT').length;
+  const nWait  = sinais.filter(s => s.slj === 'AGUARDAR').length;
+  const top5   = (ranking || []).slice(0, 5).map(r => `${r.nome} ${r.perf > 0 ? '+' : ''}${r.perf}%`).join(', ');
+  const bestSLJ = sinais.length ? sinais[0] : null;
+
+  // Stats line
+  statsEl.innerHTML = `
+    <div class="resumo-stat">Analisados: <span>${total}</span></div>
+    <div class="resumo-stat">LONG: <span style="color:var(--green)">${nLong}</span></div>
+    <div class="resumo-stat">SHORT: <span style="color:var(--red)">${nShort}</span></div>
+    <div class="resumo-stat">Aguardar: <span style="color:var(--text3)">${nWait}</span></div>
+  `;
+
+  // Badge
+  const sentiment = nLong > nShort * 2 ? 'BULLISH' : nShort > nLong * 2 ? 'BEARISH' : 'NEUTRO';
+  badgeEl.textContent = sentiment;
+  badgeEl.className = 'resumo-badge resumo-' + sentiment.toLowerCase();
+
+  const bestInfo = bestSLJ ? `Melhor candidato: ${bestSLJ.ticker} (${bestSLJ.sector}, Score ${bestSLJ.score_total}/15, ${bestSLJ.fase}, R/R ${bestSLJ.rr}:1)` : 'Sem candidatos com sinal.';
+
+  const prompt = `És um analista técnico especializado em Wyckoff e rotação sectorial. Com base nestes dados do scanner de hoje, escreve um resumo conciso em português europeu (máximo 5 linhas):
+
+Data: ${new Date().toLocaleDateString('pt-PT')}
+Mercado (VTI): ${document.getElementById('m-market')?.textContent || '—'}
+Top 5 sectores (momentum 10d): ${top5}
+Tickers analisados: ${total} | LONG: ${nLong} | SHORT: ${nShort} | AGUARDAR: ${nWait}
+${bestInfo}
+
+Dá uma leitura do estado do mercado, o que os sectores líderes sugerem, e uma recomendação prática para hoje.`;
+
+  try {
+    const r = await fetch('/api/ai-analysis', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
+    });
+    const d = await r.json();
+    textEl.textContent = d.analysis || 'Sem resposta da IA.';
+  } catch(e) {
+    textEl.textContent = `Resumo offline: ${nLong > 0 ? `${nLong} sinal(is) LONG encontrado(s)` : 'Sem sinais LONG hoje'}. ${nShort > 0 ? `${nShort} sinal(is) SHORT.` : ''} Mercado maioritariamente em ${nWait > nLong + nShort ? 'AGUARDAR' : 'movimento'}. Top sectores: ${top5}.`;
+  }
+}
 
 // ── SIGNAL SCAN (FMP) ─────────────────────────
 const FMP_KEY = "83nbGo3DBPdL6g83mmhXNpHlxO9ar65c";
