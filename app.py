@@ -128,54 +128,78 @@ def _schedule_cache_refresh():
 # ─────────────────────────────────────────────
 #  SECTORES E TICKERS
 # ─────────────────────────────────────────────
+# ─────────────────────────────────────────────
+#  SECTORES GICS — 11 sectores oficiais S&P 500
+#  + 2 sectores temáticos (Cripto, EV)
+# ─────────────────────────────────────────────
 SECTORES = [
-    {"etf": "XLK",  "nome": "Tecnologia",     "tickers": [
-        "PLTR","SOFI","AMD","PINS","FSLR","SMCI","MARA","INTC","MU",
-        "NVDA","QCOM","MRVL","ON","WOLF","AMBA","LSCC","RMBS","SITM",
-        "APPS","DDOG","ESTC","GTLB","NEWR","CFLT","BIGC","DOCN","FSLY",
-        "SOUN","BBAI","AI","GFAI","AITX","CXAI","IONQ","RGTI","QUBT","QBTS",
+    # 1. Tecnologia da Informação — hardware, software, semicondutores, serviços TI
+    {"etf": "XLK", "nome": "Tecnologia", "tickers": [
+        # Semicondutores
+        "NVDA","AMD","MU","QCOM","MRVL","INTC","ON","WOLF","AMBA","LSCC",
+        "RMBS","SITM","SMCI","AMAT","LRCX","KLAC",
+        # Software / Cloud / IA
+        "PLTR","DDOG","ESTC","GTLB","NEWR","CFLT","DOCN","FSLY","BIGC",
+        "APPS","SOUN","BBAI","AI","IONQ","RGTI","QUBT","QBTS","AITX","CXAI",
     ]},
-    {"etf": "XLF",  "nome": "Financeiro",     "tickers": [
-        "NU","HOOD","BBD","ITUB","SQ","AFRM","UPST","DAVE","CURO","PSFE",
-        "SOFI","OPEN","PAYO","LPRO","STEP","ENFN","MGNI","IMXI","EVTC","RPAY",
+    # 2. Serviços de Comunicação — telecom, redes sociais, media, entretenimento
+    {"etf": "XLC", "nome": "Comunicação", "tickers": [
+        "SNAP","PINS","MTCH","BMBL","SPOT","TTD","FUBO","PARA","SIRI",
+        "TTWO","EA","DKNG","PENN","NTES","ATVI","ZNGA","SKLZ",
     ]},
-    {"etf": "XLE",  "nome": "Energia",        "tickers": [
+    # 3. Consumo Discricionário — bens não essenciais, retalho, automóvel, lazer
+    {"etf": "XLY", "nome": "Cons. Discric.", "tickers": [
+        "F","AAL","CCL","LYFT","DASH","GME","AMC","OPEN",
+        "DKNG","BLNK","CHPT","EVGO","JOBY","ACHR",
+    ]},
+    # 4. Consumo Básico — alimentos, bebidas, higiene, tabaco
+    {"etf": "XLP", "nome": "Cons. Básico", "tickers": [
+        "KO","PEP","PG","MDLZ","KHC","GIS","CPB","CAG","SJM","HRL",
+        "MKC","CLX","CHD","ENR","SPB","COTY","ELF","ULTA","FRPT","BYND",
+    ]},
+    # 5. Financeiro — bancos, seguradoras, fintechs, corretoras
+    {"etf": "XLF", "nome": "Financeiro", "tickers": [
+        "NU","HOOD","BBD","ITUB","SQ","AFRM","UPST","DAVE","PSFE",
+        "SOFI","PAYO","LPRO","STEP","ENFN","MGNI","IMXI","EVTC","RPAY","CURO","OPEN",
+    ]},
+    # 6. Saúde — farmacêutica, biotech, equipamentos médicos
+    {"etf": "XLV", "nome": "Saúde", "tickers": [
+        "PFE","GEHC","TDOC","HIMS","DOCS","ACCD","AMWL","OSCR","CLOV",
+        "NVAX","ARCT","VXRT","SRNE","OCGN","BEAM","EDIT","NTLA","CRSP","FATE","TALK",
+    ]},
+    # 7. Industriais — aeroespacial, defesa, maquinaria, transportes
+    {"etf": "XLI", "nome": "Industriais", "tickers": [
+        "KTOS","RKLB","ASTR","SPCE","AVAV","UAVS",
+        "ZIM","DAC","GSL","SBLK","GOGL","EGLE","GNK","CTRM","SHIP","TOPS",
+        "AL","JOBY","ACHR","GE","RTX","LMT",
+    ]},
+    # 8. Energia — petróleo, gás, energias renováveis
+    {"etf": "XLE", "nome": "Energia", "tickers": [
         "RIG","CLNE","BORR","NOG","CIVI","SM","PTEN","PUMP","NGL","TALO",
         "TELL","SWN","RRC","EQT","CNX","AR","NGAS","NEXT","MGY","REI",
     ]},
-    {"etf": "XLY",  "nome": "Cons. Discric.", "tickers": [
-        "F","NIO","AAL","CCL","DKNG","LYFT","DASH","RIVN","LCID","XPEV",
-        "LI","JOBY","ACHR","BLNK","CHPT","EVGO","GME","AMC","SKLZ","OPEN",
-    ]},
-    {"etf": "XLV",  "nome": "Saúde",          "tickers": [
-        "PFE","TALK","GEHC","TDOC","HIMS","DOCS","ACCD","AMWL","OSCR","CLOV",
-        "NVAX","ARCT","VXRT","SRNE","OCGN","BEAM","EDIT","NTLA","CRSP","FATE",
-    ]},
-    {"etf": "XLI",  "nome": "Industriais",    "tickers": [
-        "AL","JOBY","BLNK","CHPT","KTOS","RKLB","ASTR","SPCE","AVAV","UAVS",
-        "ZIM","DAC","GSL","SBLK","GOGL","EGLE","GNK","CTRM","SHIP","TOPS",
-    ]},
-    {"etf": "XLB",  "nome": "Materiais",      "tickers": [
+    # 9. Materiais — mineração, metais, químicos
+    {"etf": "XLB", "nome": "Materiais", "tickers": [
         "FCX","CLF","MP","AA","X","VALE","MT","STLD","NUE","CENX",
         "PAAS","EGO","HL","CDE","SILV","FSM","SVM","SAND","SSRM","AUMN",
     ]},
-    {"etf": "XLU",  "nome": "Utilities",      "tickers": [
+    # 10. Imobiliário — REITs, desenvolvimento imobiliário
+    {"etf": "XLRE", "nome": "Imobiliário", "tickers": [
+        "PLD","WELL","AMT","RDFN","HOUS","EXPI","UWMC","RKT","PFSI",
+        "NRZ","TWO","IVR","MITT","BXMT","GPMT","MAIN","HTGC","ARCC","GBDC","OPEN",
+    ]},
+    # 11. Utilidades Públicas — eletricidade, água, gás
+    {"etf": "XLU", "nome": "Utilities", "tickers": [
         "NEE","SO","DUK","PCG","AES","EIX","CNP","CMS","NI","OGE",
-        "CLNE","AMRC","REGI","GPRE","GEVO","REX","AMTX","STEM","FLNC","NOVA",
+        "AMRC","REGI","GPRE","GEVO","REX","AMTX","STEM","FLNC","NOVA","CLNE",
     ]},
-    {"etf": "XLRE", "nome": "Real Estate",    "tickers": [
-        "PLD","WELL","AMT","RDFN","OPEN","HOUS","EXPI","UWMC","RKT","PFSI",
-        "NRZ","TWO","IVR","MITT","BXMT","GPMT","MAIN","HTGC","ARCC","GBDC",
-    ]},
-    {"etf": "XLC",  "nome": "Comunicação",    "tickers": [
-        "SNAP","PINS","MTCH","BMBL","SPOT","TTD","FUBO","PARA","SIRI","DISH",
-        "ATVI","TTWO","EA","ZNGA","DKNG","PENN","GME","AMC","SKLZ","NTES",
-    ]},
-    {"etf": "MARA", "nome": "Cripto/Miners",  "tickers": [
+    # Temático — Cripto / Miners
+    {"etf": "MARA", "nome": "Cripto/Miners", "tickers": [
         "MARA","RIOT","CIFR","HUT","BITF","CLSK","IREN","BTBT","WULF","CORZ",
         "HIVE","BTCS","MSTR","COIN","HOOD","ARBK","SDIG","BTOG","BTCM","GREE",
     ]},
-    {"etf": "TSLA", "nome": "EV Avançado",    "tickers": [
+    # Temático — EV Avançado
+    {"etf": "TSLA", "nome": "EV Avançado", "tickers": [
         "RIVN","LCID","NIO","XPEV","LI","FSR","GOEV","MULN","ZEV","RIDE",
         "WKHS","HYLN","SOLO","MVST","IDEX","NKLA","ACHR","JOBY","LILM","SPCE",
     ]},
@@ -586,6 +610,74 @@ def api_mercado():
 def api_ranking():
     top_n = int(request.args.get("top_n", 5))
     return jsonify({"ranking": calcular_ranking(top_n=top_n)})
+
+@app.route("/api/ranking/historico", methods=["GET"])
+def api_ranking_historico():
+    """Calcula o ranking sectorial para as últimas 4 semanas."""
+    historico = []
+    # Semanas: 0=atual, 1=1 semana atrás, 2=2 semanas atrás, 3=3 semanas atrás
+    semanas = [
+        {"label": "Esta semana",   "fim": 0,  "ini": 5},
+        {"label": "Semana -1",     "fim": 5,  "ini": 10},
+        {"label": "Semana -2",     "fim": 10, "ini": 15},
+        {"label": "Semana -3",     "fim": 15, "ini": 20},
+    ]
+
+    # Obter dados de 40 dias para cada ETF
+    dados_etf = {}
+    for sec in SECTORES:
+        df = obter_dados_alpaca(sec["etf"], 45)
+        dados_etf[sec["etf"]] = {"df": df, "nome": sec["nome"], "etf": sec["etf"], "tickers": sec["tickers"]}
+        time.sleep(0.05)
+
+    # Calcular ranking para cada semana
+    for sem in semanas:
+        ranks = []
+        for etf, info in dados_etf.items():
+            df = info["df"]
+            perf = 0.0
+            fim = sem["fim"]
+            ini = sem["ini"]
+            # iloc[-1] = hoje, iloc[-6] = 5 dias atrás, etc.
+            if len(df) >= ini + 1:
+                p_fim = float(df["Close"].iloc[-(fim+1)] if fim > 0 else df["Close"].iloc[-1])
+                p_ini = float(df["Close"].iloc[-(ini+1)])
+                if p_ini > 0:
+                    perf = round((p_fim - p_ini) / p_ini * 100, 2)
+            ranks.append({"etf": etf, "nome": info["nome"], "perf": perf})
+
+        ranks_sorted = sorted(ranks, key=lambda x: x["perf"], reverse=True)
+        for i, r in enumerate(ranks_sorted):
+            r["rank"] = i + 1
+        historico.append({"semana": sem["label"], "ranking": ranks_sorted})
+
+    # Reorganizar por sector — cada sector tem a sua posição em cada semana
+    sectores_hist = []
+    for sec in SECTORES:
+        entry = {"etf": sec["etf"], "nome": sec["nome"], "semanas": []}
+        for sem_data in historico:
+            found = next((r for r in sem_data["ranking"] if r["etf"] == sec["etf"]), None)
+            entry["semanas"].append({
+                "label": sem_data["semana"],
+                "rank": found["rank"] if found else 0,
+                "perf": found["perf"] if found else 0.0,
+            })
+        # Tendência: comparar rank desta semana vs semana passada
+        rank_atual = entry["semanas"][0]["rank"]
+        rank_anterior = entry["semanas"][1]["rank"]
+        if rank_atual < rank_anterior:
+            entry["tendencia"] = "up"
+        elif rank_atual > rank_anterior:
+            entry["tendencia"] = "down"
+        else:
+            entry["tendencia"] = "flat"
+        entry["rank_atual"] = rank_atual
+        entry["perf_atual"] = entry["semanas"][0]["perf"]
+        sectores_hist.append(entry)
+
+    # Ordenar pelo rank atual
+    sectores_hist.sort(key=lambda x: x["rank_atual"])
+    return jsonify({"historico": sectores_hist})
 
 @app.route("/api/scan", methods=["POST"])
 def api_scan():

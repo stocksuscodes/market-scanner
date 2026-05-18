@@ -162,6 +162,31 @@
   .lookup-loading { color: var(--text3); font-size: 11px; margin-top: 10px; display: flex; align-items: center; gap: 8px; }
 
 
+  /* ── ROTATION TABLE ── */
+  .rot-table { width: 100%; border-collapse: collapse; font-size: 10px; }
+  .rot-table th { font-size: 8px; letter-spacing: 1px; color: var(--text3); text-transform: uppercase; padding: 4px 8px; text-align: center; border-bottom: 1px solid var(--border); }
+  .rot-table th:first-child { text-align: left; }
+  .rot-table td { padding: 5px 8px; border-bottom: 1px solid var(--border3); text-align: center; }
+  .rot-table td:first-child { text-align: left; }
+  .rot-table tr:hover td { background: var(--bg3); }
+  .rot-rank { font-weight: 700; font-size: 13px; }
+  .rot-rank.top { color: var(--accent); }
+  .rot-rank.mid { color: var(--text); }
+  .rot-rank.bot { color: var(--text3); }
+  .rot-perf { font-size: 9px; }
+  .rot-nome { font-weight: 600; font-size: 11px; }
+  .rot-etf  { font-size: 9px; color: var(--text3); }
+  .rot-tend { font-size: 16px; font-weight: 700; }
+  .rot-tend.up   { color: #00e676; }
+  .rot-tend.down { color: #ff1744; }
+  .rot-tend.flat { color: #ffd600; }
+  .rot-week-num { display: inline-block; width: 22px; height: 22px; border-radius: 50%; line-height: 22px; font-weight: 700; font-size: 11px; }
+  .rot-week-num.top1 { background:#00e676;color:#000; }
+  .rot-week-num.top2 { background:#69f0ae;color:#000; }
+  .rot-week-num.top3 { background:#1e4d3a;color:#00e676; }
+  .rot-week-num.mid  { background:var(--bg3);color:var(--text3); }
+  .rot-week-num.bot  { background:#2a0a0a;color:#ff6b6b; }
+
   /* ── SIGNAL SCAN (FMP) ── */
   .signal-section { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
   .signal-section-title { font-size: 9px; letter-spacing: 2px; color: var(--text3); text-transform: uppercase; margin-bottom: 10px; }
@@ -221,8 +246,19 @@
 
   <!-- CONFIG -->
   <div class="config-panel">
-    <div class="config-title">Sectores e tickers</div>
-    <div class="sectors-grid" id="sectors-grid"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+      <div class="config-title" style="margin-bottom:0">Rotação Sectorial — Últimas 4 semanas</div>
+      <button class="sec-toggle" onclick="toggleSectoresDetalhe()" id="btn-detalhe" style="font-size:9px;padding:3px 10px;">▼ ver tickers</button>
+    </div>
+    <!-- Rotation Table -->
+    <div id="rotation-table" style="overflow-x:auto;margin-bottom:12px;">
+      <div style="font-size:10px;color:var(--text3);font-style:italic;">A carregar rotação sectorial...</div>
+    </div>
+    <!-- Sectores detalhe (colapsável) -->
+    <div id="sectors-detalhe" style="display:none;margin-bottom:12px;">
+      <div class="config-title" style="margin-top:8px;">Tickers por sector</div>
+      <div class="sectors-grid" id="sectors-grid"></div>
+    </div>
     <div class="params-row" style="margin-top:14px">
       <div class="param-group"><label>Preço mín $</label><input type="number" id="p-min" value="5" min="1"></div>
       <div class="param-group"><label>Preço máx $</label><input type="number" id="p-max" value="50" min="1"></div>
@@ -284,6 +320,64 @@ const PHASE_CLASS = {
 };
 
 // ── Carregar sectores do backend ──
+function toggleSectoresDetalhe() {
+  const d = document.getElementById('sectors-detalhe');
+  const btn = document.getElementById('btn-detalhe');
+  const visible = d.style.display !== 'none';
+  d.style.display = visible ? 'none' : 'block';
+  btn.textContent = visible ? '▼ ver tickers' : '▲ esconder tickers';
+}
+
+function rankClass(rank, total) {
+  if (rank === 1) return 'top1';
+  if (rank === 2) return 'top2';
+  if (rank === 3) return 'top3';
+  if (rank > total * 0.7) return 'bot';
+  return 'mid';
+}
+
+async function loadRotacaoSectorial() {
+  const box = document.getElementById('rotation-table');
+  try {
+    const r = await fetch('/api/ranking/historico');
+    const data = await r.json();
+    const hist = data.historico;
+    if (!hist || !hist.length) {
+      box.innerHTML = '<div style="font-size:10px;color:var(--text3)">Sem dados</div>';
+      return;
+    }
+    const semLabels = hist[0].semanas.map(s => s.label);
+    const total = hist.length;
+
+    let html = '<table class="rot-table"><thead><tr>';
+    html += '<th>Sector</th>';
+    semLabels.forEach(l => { html += `<th>${l}</th>`; });
+    html += '<th>Tend.</th></tr></thead><tbody>';
+
+    hist.forEach(sec => {
+      const tendCls = sec.tendencia === 'up' ? 'up' : sec.tendencia === 'down' ? 'down' : 'flat';
+      const tendSym = sec.tendencia === 'up' ? '▲' : sec.tendencia === 'down' ? '▼' : '—';
+      html += '<tr>';
+      html += `<td><div class="rot-nome">${sec.nome}</div><div class="rot-etf">${sec.etf}</div></td>`;
+      sec.semanas.forEach(sem => {
+        const cls = rankClass(sem.rank, total);
+        const perfColor = sem.perf >= 0 ? 'color:#00e676' : 'color:#ff1744';
+        html += `<td>
+          <span class="rot-week-num ${cls}">${sem.rank}</span>
+          <div class="rot-perf" style="${perfColor}">${sem.perf >= 0 ? '+' : ''}${sem.perf}%</div>
+        </td>`;
+      });
+      html += `<td><span class="rot-tend ${tendCls}">${tendSym}</span></td>`;
+      html += '</tr>';
+    });
+
+    html += '</tbody></table>';
+    box.innerHTML = html;
+  } catch(e) {
+    box.innerHTML = `<div style="font-size:10px;color:var(--red)">Erro: ${e.message}</div>`;
+  }
+}
+
 async function loadSectores() {
   try {
     const r = await fetch('/api/sectores');
@@ -295,6 +389,7 @@ async function loadSectores() {
     buildSectorsUI();
     updateSelInfo();
     loadMercado();
+  loadRotacaoSectorial();
   } catch(e) {
     console.error('Erro ao carregar sectores:', e);
   }
