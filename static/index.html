@@ -279,9 +279,15 @@
       <div class="param-group"><label>RSI máx</label><input type="number" id="rsi-max" value="55" min="1"></div>
     </div>
     <div class="sel-info" id="sel-info"></div>
-    <button class="run-btn" id="run-btn" onclick="runScan()">
-      ▶ Executar scan com dados Alpaca
-    </button>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="run-btn" id="run-btn" onclick="runScan()" style="flex:1;min-width:200px;">
+        ▶ Scan Top 5 Sectores
+      </button>
+      <button class="run-btn" id="run-btn-russell" onclick="runRussellScan()"
+        style="flex:1;min-width:200px;background:linear-gradient(135deg,#1a2a1a,#0d1a0d);border-color:#00e676;">
+        ⟳ Scan Russell 3000
+      </button>
+    </div>
   </div>
 
   <!-- METRICS -->
@@ -800,6 +806,60 @@ Stop: $${s.stop} | Alvo: $${s.alvo} | R/R: ${s.rr}:1`;
 
 
 // ── RESUMO IA ─────────────────────────────────
+async function runRussellScan() {
+  const btn = document.getElementById('run-btn-russell');
+  btn.disabled = true;
+  btn.textContent = '⟳ A filtrar Russell 3000...';
+
+  const pMin   = parseFloat(document.getElementById('p-min').value)   || 5;
+  const pMax   = parseFloat(document.getElementById('p-max').value)   || 500;
+  const adxMin = parseFloat(document.getElementById('adx-min').value) || 15;
+  const rsiMax = parseFloat(document.getElementById('rsi-max').value) || 75;
+
+  // Progress simulation
+  let dots = 0;
+  const progInterval = setInterval(() => {
+    dots = (dots + 1) % 4;
+    btn.textContent = '⟳ Russell 3000' + '.'.repeat(dots);
+  }, 800);
+
+  try {
+    const r = await fetch('/api/scan/russell', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_min: pMin, p_max: pMax, adx_min: adxMin, rsi_max: rsiMax })
+    });
+    const data = await r.json();
+
+    if (data.message) {
+      clearInterval(progInterval);
+      btn.disabled = false;
+      btn.textContent = '⟳ Scan Russell 3000';
+      alert(data.message);
+      return;
+    }
+
+    const signals = data.sinais || [];
+    lastSignals = signals;
+    clearInterval(progInterval);
+
+    document.getElementById('m-total').textContent = data.total;
+    document.getElementById('m-long').textContent  = signals.filter(s => s.slj === 'LONG').length;
+    document.getElementById('m-rr').textContent    = signals.length ? signals[0].rr + 'x' : '—';
+
+    renderResults(signals);
+    gerarResumo(signals, [], data.total || 0);
+
+    btn.disabled = false;
+    btn.textContent = `✓ Russell 3000 (${signals.length} sinais)`;
+  } catch(e) {
+    clearInterval(progInterval);
+    btn.disabled = false;
+    btn.textContent = '⟳ Scan Russell 3000';
+    alert('Erro: ' + e.message);
+  }
+}
+
 async function gerarResumo(sinais, ranking, total) {
   const panel = document.getElementById('resumo-panel');
   const textEl = document.getElementById('resumo-text');

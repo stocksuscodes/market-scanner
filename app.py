@@ -61,6 +61,104 @@ MA_SHORT          = 20
 MA_LONG           = 200
 
 # ─────────────────────────────────────────────
+#  RUSSELL 3000 — PRÉ-FILTRO
+# ─────────────────────────────────────────────
+# Lista base Russell 3000 (amostra representativa por sector GICS)
+RUSSELL_3000_TICKERS = [
+    # Tecnologia / Semicondutores
+    "NVDA","AMD","INTC","MU","QCOM","MRVL","ON","WOLF","AMBA","LSCC","RMBS","SITM","SMCI",
+    "AMAT","LRCX","KLAC","TXN","ADI","MCHP","SWKS","QRVO","MPWR","ENTG","ONTO","ACLS","COHU",
+    # Software / Cloud
+    "PLTR","DDOG","ESTC","GTLB","NEWR","CFLT","DOCN","FSLY","BIGC","APPS","SOUN","BBAI","AI",
+    "IONQ","RGTI","QUBT","QBTS","AITX","CXAI","CRM","NOW","SNOW","DDOG","ZS","CRWD","OKTA",
+    "PANW","FTNT","NET","ZI","BILL","HUBS","VEEV","WDAY","PAYC","PCTY","SPSN","NCNO","JAMF",
+    # IA / Quantum
+    "MSFT","GOOGL","META","AMZN","AAPL","IBM","ORCL","HPE","DELL","NTAP",
+    # Financeiro / Fintech
+    "NU","HOOD","BBD","ITUB","SQ","AFRM","UPST","DAVE","PSFE","SOFI","PAYO","LPRO","STEP",
+    "ENFN","MGNI","IMXI","EVTC","RPAY","CURO","OPEN","LC","OPFI","PRAA","WRLD","FCFS","EZPW",
+    "V","MA","AXP","COF","DFS","SYF","ALLY","OMF","CACC","SCSC","NAVI","SLM","NMIH","ESNT",
+    # Saúde / Biotech
+    "PFE","GEHC","TDOC","HIMS","DOCS","ACCD","AMWL","OSCR","CLOV","NVAX","ARCT","VXRT","SRNE",
+    "OCGN","BEAM","EDIT","NTLA","CRSP","FATE","TALK","RXRX","SANA","VERV","GRPH","IMVT","KYMR",
+    "PRAX","ACMR","TGTX","AGEN","IMMU","ADMA","CALT","NKTR","GOSS","CCXI","IDYA","MRUS",
+    "JNJ","ABT","MDT","SYK","BSX","EW","ISRG","DXCM","PODD","INSP","NVCR","AXNX","LIVN",
+    # Energia
+    "RIG","CLNE","BORR","NOG","CIVI","SM","PTEN","PUMP","NGL","TALO","TELL","SWN","RRC",
+    "EQT","CNX","AR","NGAS","NEXT","MGY","REI","CHRD","ESTE","CDEV","SLB","HAL","BKR",
+    "OXY","DVN","FANG","PXD","MRO","APA","COP","EOG","HES","VLO","PSX","MPC","DK",
+    # Consumo Discricionário
+    "F","AAL","CCL","LYFT","DASH","GME","AMC","OPEN","DKNG","BLNK","CHPT","EVGO","JOBY","ACHR",
+    "ABNB","BKNG","EXPE","TRIP","RCL","NCL","MAR","HLT","H","WYNN","LVS","MGM","CZR","PENN",
+    "NCLH","PLNT","GOLF","MODG","YETI","FIGS","CURV","LOVE","VSCO","ANF","AEO","URBN",
+    # Consumo Básico
+    "KO","PEP","PG","MDLZ","KHC","GIS","CPB","CAG","SJM","HRL","MKC","CLX","CHD","ENR",
+    "SPB","COTY","ELF","ULTA","FRPT","BYND","HAIN","SMPL","NOMD","POST","LNDC","JJSF",
+    # Comunicação / Media
+    "SNAP","PINS","MTCH","BMBL","SPOT","TTD","FUBO","PARA","SIRI","ATVI","TTWO","EA","DKNG",
+    "PENN","NTES","ZNGA","SKLZ","DIS","NFLX","WBD","FOX","FOXA","NYT","GENI","PLTK","CXAI",
+    # Industriais / Defesa / Transportes
+    "KTOS","RKLB","ASTR","SPCE","AVAV","UAVS","ZIM","DAC","GSL","SBLK","GOGL","EGLE","GNK",
+    "CTRM","SHIP","TOPS","AL","GE","RTX","LMT","NOC","BA","HII","LDOS","CACI","SAIC","BAH",
+    "AXON","TACT","VEC","DRS","FLIR","OSK","SWBI","VSTO","POWL","WLDN","MYRG","GVA","TRN",
+    # Materiais / Metais / Mineração
+    "FCX","CLF","MP","AA","X","VALE","MT","STLD","NUE","CENX","PAAS","EGO","HL","CDE",
+    "SILV","FSM","SVM","SAND","SSRM","AUMN","GOLD","AEM","KGC","AG","MAG","CDE","WPM","FNV",
+    "RGLD","OR","TFPM","GATO","MNMR","USAS","GPL","MTA","ASM","EXK","IPX","GPAK",
+    # Imobiliário
+    "PLD","WELL","AMT","RDFN","HOUS","EXPI","UWMC","RKT","PFSI","NRZ","TWO","IVR","MITT",
+    "BXMT","GPMT","MAIN","HTGC","ARCC","GBDC","OPEN","KREF","TPVG","GAIN","OXSQ","CSWC",
+    # Utilities / Energia Limpa
+    "NEE","SO","DUK","PCG","AES","EIX","CNP","CMS","NI","OGE","AMRC","REGI","GPRE","GEVO",
+    "REX","AMTX","STEM","FLNC","NOVA","CLNE","PLUG","FCEL","BLDP","NKLA","BE","RUN","ENPH",
+    "SEDG","ARRY","CSIQ","FSLR","SPWR","MAXN","PEGI","CWEN","BEP","AY","NEP","TPIC",
+    # Cripto / Blockchain
+    "MARA","RIOT","CIFR","HUT","BITF","CLSK","IREN","BTBT","WULF","CORZ","HIVE","BTCS",
+    "MSTR","COIN","HOOD","ARBK","SDIG","BTOG","BTCM","GREE","SI","GLXY","HIVE","DMGI",
+    # EV / Mobilidade
+    "RIVN","LCID","NIO","XPEV","LI","FSR","GOEV","MULN","ZEV","RIDE","WKHS","HYLN","SOLO",
+    "MVST","IDEX","NKLA","ACHR","JOBY","LILM","SPCE","BLNK","CHPT","EVGO","VLTA","AMPX",
+]
+# Remove duplicates
+RUSSELL_3000_TICKERS = list(dict.fromkeys(RUSSELL_3000_TICKERS))
+
+
+def prefiltro_russell(tickers: list, p_min: float = 5, p_max: float = 500,
+                      vol_min: int = 500_000, adx_min: float = 15) -> list:
+    """
+    Pré-filtra uma lista de tickers pelos critérios básicos:
+    preço, volume médio 20d, acima SMA200, ADX mínimo.
+    Retorna lista de dicts com ticker + sector info.
+    """
+    passed = []
+    for ticker in tickers:
+        try:
+            df = obter_dados_alpaca(ticker, 30)
+            if len(df) < 25:
+                continue
+            df = compute_indicators(df)
+            last = df.iloc[-1]
+            preco  = float(last["Close"])
+            sma200 = float(last["sma200"]) if pd.notna(last.get("sma200")) else None
+            adx    = float(last["adx"])    if pd.notna(last.get("adx"))    else 0
+            vol20  = float(df["Volume"].rolling(20).mean().iloc[-1])
+
+            if not (p_min <= preco <= p_max):
+                continue
+            if vol20 < vol_min:
+                continue
+            if adx < adx_min:
+                continue
+            # Determinar sector
+            sec_info = TICKER_SECTOR_MAP.get(ticker, {"etf": "—", "sector": "Outro"})
+            passed.append({"ticker": ticker, "etf": sec_info["etf"], "sector": sec_info["sector"]})
+            time.sleep(0.05)
+        except Exception:
+            continue
+    return passed
+
+
+# ─────────────────────────────────────────────
 #  CACHE — Pre-calculated results for Railway
 # ─────────────────────────────────────────────
 import threading
@@ -972,6 +1070,87 @@ def api_lookup():
         "ms_score": ms_score, "ms_label": ms_label,
         "ms_notes": ms_notes, "ms_vcp": ms_vcp,
     })
+
+
+@app.route("/api/scan/russell", methods=["POST"])
+def api_scan_russell():
+    """Scan com pré-filtro Russell 3000."""
+    body    = request.get_json() or {}
+    p_min   = float(body.get("p_min",   5))
+    p_max   = float(body.get("p_max",   500))
+    adx_min = float(body.get("adx_min", 15))
+    rsi_max = float(body.get("rsi_max", 75))
+    vol_min = int(body.get("vol_min",   500_000))
+
+    # Railway: usar cache Russell se disponível
+    if os.getenv("RAILWAY_ENVIRONMENT"):
+        cache = _cache.get("russell", {})
+        if not cache.get("sinais") and not cache.get("running"):
+            threading.Thread(target=_run_russell_background, daemon=True).start()
+        if cache.get("running") and not cache.get("sinais"):
+            return jsonify({"sinais": [], "total": 0,
+                           "message": "A calcular Russell 3000... aguarda 5-10 min."})
+        filtered = [s for s in cache.get("sinais", [])
+                    if p_min <= s["price"] <= p_max
+                    and s["rsi"] <= rsi_max
+                    and s["adx"] >= adx_min]
+        return jsonify({"sinais": filtered, "total": cache.get("total", 0),
+                       "cached_at": str(cache.get("timestamp")),
+                       "source": "russell3000"})
+
+    # Local: pré-filtro + scan
+    print(f"  [RUSSELL] Pré-filtro de {len(RUSSELL_3000_TICKERS)} tickers...", flush=True)
+    tickers_filtrados = prefiltro_russell(
+        RUSSELL_3000_TICKERS, p_min=p_min, p_max=p_max,
+        vol_min=vol_min, adx_min=adx_min
+    )
+    print(f"  [RUSSELL] {len(tickers_filtrados)} passaram o pré-filtro", flush=True)
+
+    sinais = []
+    for item in tickers_filtrados:
+        resultado = analisar_ativo(
+            item["ticker"], item["etf"], item["sector"],
+            p_min, p_max, adx_min, rsi_max
+        )
+        if resultado:
+            sinais.append(resultado)
+        time.sleep(0.15)
+
+    sinais.sort(key=lambda x: (-x["score_total"], -x["rr"]))
+    return jsonify({"sinais": sinais, "total": len(tickers_filtrados),
+                   "pre_filter": len(RUSSELL_3000_TICKERS),
+                   "source": "russell3000"})
+
+
+def _run_russell_background():
+    """Runs Russell 3000 scan in background."""
+    if _cache.get("russell", {}).get("running"):
+        return
+    if "russell" not in _cache:
+        _cache["russell"] = {"sinais": [], "total": 0, "timestamp": None, "running": False}
+    _cache["russell"]["running"] = True
+    print("  [RUSSELL] A iniciar scan Russell 3000 em background...", flush=True)
+    try:
+        tickers_filtrados = prefiltro_russell(RUSSELL_3000_TICKERS, p_min=5, p_max=500,
+                                               vol_min=500_000, adx_min=15)
+        print(f"  [RUSSELL] {len(tickers_filtrados)} passaram o pré-filtro", flush=True)
+        sinais = []
+        for item in tickers_filtrados:
+            resultado = analisar_ativo(
+                item["ticker"], item["etf"], item["sector"], 5, 500, 15, 75
+            )
+            if resultado:
+                sinais.append(resultado)
+            time.sleep(0.15)
+        sinais.sort(key=lambda x: (-x["score_total"], -x["rr"]))
+        _cache["russell"]["sinais"]    = sinais
+        _cache["russell"]["total"]     = len(tickers_filtrados)
+        _cache["russell"]["timestamp"] = datetime.utcnow()
+        print(f"  [RUSSELL] Scan completo: {len(sinais)} sinais", flush=True)
+    except Exception as e:
+        print(f"  [RUSSELL] Erro: {e}", flush=True)
+    finally:
+        _cache["russell"]["running"] = False
 
 
 # ─────────────────────────────────────────────
