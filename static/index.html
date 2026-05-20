@@ -556,7 +556,7 @@ async function runScan() {
   }
 
   btn.disabled = false;
-  btn.textContent = '▶ Executar scan com dados Alpaca';
+  btn.textContent = '▶ Scan Top 5 Sectores';
 }
 
 function renderResults(signals) {
@@ -1025,6 +1025,11 @@ function renderFmpSection(fmp) {
 }
 
 loadSectores();
+// Garantir que botoes nao ficam disabled
+document.addEventListener('DOMContentLoaded', function() {
+  const rb = document.getElementById('run-btn-russell');
+  if (rb) rb.disabled = false;
+});
 </script>
 </body>
 </html>
