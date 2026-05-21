@@ -1107,6 +1107,32 @@ def api_lookup():
     # Markov detalhado
     markov_data = markov_detalhado(df)
 
+    # Signal Scan — Trend · Momentum · Volume (Alpaca)
+    def _clamp(v, lo=-10, hi=10): return max(lo, min(hi, int(round(v))))
+    sig_trend = None
+    if len(df) >= 15:
+        p0  = float(df["Close"].iloc[-1])
+        p14 = float(df["Close"].iloc[-15])
+        sig_trend = _clamp(((p0 - p14) / p14) * 100 * 1.5)
+    sig_momentum = None
+    if len(df) >= 12:
+        prices = df["Close"].values
+        roc1 = ((float(prices[-1]) - float(prices[-11])) / float(prices[-11])) * 100
+        roc2 = ((float(prices[-2]) - float(prices[-12])) / float(prices[-12])) * 100
+        sig_momentum = _clamp((roc1 - roc2) * 3)
+    sig_volume = None
+    if len(df) >= 11:
+        vols = df["Volume"].values.astype(float)
+        avg_vol = float(np.mean(vols[-11:-1]))
+        if avg_vol > 0:
+            sig_volume = _clamp((vols[-1] / avg_vol - 1) * 10)
+    sig_composite = (sig_trend or 0) + (sig_momentum or 0) + (sig_volume or 0)
+    if sig_composite >= 12:    sig_signal = "STRONG_BUY"
+    elif sig_composite >= 5:   sig_signal = "BUY"
+    elif sig_composite <= -12: sig_signal = "STRONG_SELL"
+    elif sig_composite <= -5:  sig_signal = "SELL"
+    else:                      sig_signal = "NEUTRAL"
+
     return jsonify({
         "ticker": ticker, "etf": etf, "sector": setor,
         "price": round(preco, 2), "chg_pct": chg,
@@ -1124,6 +1150,9 @@ def api_lookup():
         "ms_score": ms_score, "ms_label": ms_label,
         "ms_notes": ms_notes, "ms_vcp": ms_vcp,
         "markov": markov_data,
+        "sig_trend": sig_trend, "sig_momentum": sig_momentum,
+        "sig_volume": sig_volume, "sig_composite": sig_composite,
+        "sig_signal": sig_signal,
     })
 
 
