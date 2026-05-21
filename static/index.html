@@ -397,34 +397,86 @@ async function loadRotacaoSectorial() {
       box.innerHTML = '<div style="font-size:10px;color:var(--text3)">Sem dados</div>';
       return;
     }
-    const semLabels = hist[0].semanas.map(s => s.label);
     const total = hist.length;
 
-    let html = '<table class="rot-table"><thead><tr>';
-    html += '<th>Sector</th>';
-    const shortLabels = ['Sem.1', 'Sem.-1', 'Sem.-2', 'Sem.-3'];
-    shortLabels.forEach(l => { html += `<th>${l}</th>`; });
-    html += '<th>▲▼</th></tr></thead><tbody>';
-
+    // TABLE
+    let tableHtml = '<table class="rot-table"><thead><tr>';
+    tableHtml += '<th>Sector</th>';
+    ['Sem.1','Sem.-1','Sem.-2','Sem.-3'].forEach(l => { tableHtml += `<th>${l}</th>`; });
+    tableHtml += '<th>▲▼</th></tr></thead><tbody>';
     hist.forEach(sec => {
       const tendCls = sec.tendencia === 'up' ? 'up' : sec.tendencia === 'down' ? 'down' : 'flat';
       const tendSym = sec.tendencia === 'up' ? '▲' : sec.tendencia === 'down' ? '▼' : '—';
-      html += '<tr>';
-      html += `<td><div class="rot-nome">${sec.nome}</div><div class="rot-etf">${sec.etf}</div></td>`;
+      tableHtml += '<tr>';
+      tableHtml += `<td><div class="rot-nome">${sec.nome}</div><div class="rot-etf">${sec.etf}</div></td>`;
       sec.semanas.forEach(sem => {
         const cls = rankClass(sem.rank, total);
         const perfColor = sem.perf >= 0 ? 'color:#00e676' : 'color:#ff1744';
-        html += `<td>
-          <span class="rot-week-num ${cls}">${sem.rank}</span>
-          <div class="rot-perf" style="${perfColor}">${sem.perf >= 0 ? '+' : ''}${sem.perf}%</div>
-        </td>`;
+        tableHtml += `<td><span class="rot-week-num ${cls}">${sem.rank}</span><div class="rot-perf" style="${perfColor}">${sem.perf >= 0 ? '+' : ''}${sem.perf}%</div></td>`;
       });
-      html += `<td><span class="rot-tend ${tendCls}">${tendSym}</span></td>`;
-      html += '</tr>';
+      tableHtml += `<td><span class="rot-tend ${tendCls}">${tendSym}</span></td>`;
+      tableHtml += '</tr>';
+    });
+    tableHtml += '</tbody></table>';
+
+    // SVG CHART — rank evolution
+    const chartW = 280, chartH = 320, padL = 8, padT = 20, padB = 10;
+    const plotW = chartW - padL - 4;
+    const plotH = chartH - padT - padB;
+    const weeks = 4;
+    const colW = plotW / (weeks - 1);
+    const colors = ['#00e676','#69f0ae','#40c4ff','#b388ff','#ffd740',
+                    '#ff6d00','#e040fb','#00bcd4','#8bc34a','#ff5722',
+                    '#607d8b','#f06292','#4db6ac'];
+
+    const rankToY = (rank) => padT + ((rank - 1) / (total - 1)) * plotH;
+    const weekToX = (wi) => padL + wi * colW;
+
+    // Grid lines
+    let grid = '';
+    for (let i = 1; i <= total; i++) {
+      const y = rankToY(i);
+      grid += `<line x1="${padL}" y1="${y}" x2="${chartW-4}" y2="${y}" stroke="#1e2d3d" stroke-width="0.5"/>`;
+    }
+
+    // X labels
+    let xLabels = '';
+    ['S-3','S-2','S-1','S.1'].forEach((l, i) => {
+      xLabels += `<text x="${weekToX(i)}" y="${padT-6}" font-size="7" fill="#5a7a96" font-family="monospace" text-anchor="middle">${l}</text>`;
     });
 
-    html += '</tbody></table>';
-    box.innerHTML = html;
+    // Lines + dots
+    let lines = '', dots = '', labels = '';
+    hist.forEach((sec, si) => {
+      const color = colors[si % colors.length];
+      const ranks = [...sec.semanas].reverse().map(s => s.rank);
+      let pathD = '';
+      ranks.forEach((rank, wi) => {
+        const x = weekToX(wi);
+        const y = rankToY(rank);
+        if (wi === 0) pathD += `M${x},${y}`;
+        else pathD += ` L${x},${y}`;
+        dots += `<circle cx="${x}" cy="${y}" r="3" fill="${color}" stroke="#080c10" stroke-width="1"/>`;
+      });
+      lines += `<path d="${pathD}" stroke="${color}" stroke-width="1.5" fill="none" opacity="0.85"/>`;
+      // Label at current week (last point = index 3)
+      const lastX = weekToX(3);
+      const lastY = rankToY(ranks[3]);
+      labels += `<text x="${lastX+5}" y="${lastY+3}" font-size="7" fill="${color}" font-family="monospace">${sec.etf}</text>`;
+    });
+
+    const svgChart = `<svg width="${chartW}" height="${chartH}" style="flex-shrink:0;background:var(--bg3);border-radius:6px;border:1px solid var(--border)">
+      ${grid}${xLabels}${lines}${dots}${labels}
+    </svg>`;
+
+    box.innerHTML = `<div style="display:flex;align-items:flex-start;gap:16px;overflow-x:auto;">
+      ${tableHtml}
+      <div style="flex-shrink:0;">
+        <div style="font-size:8px;letter-spacing:1px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;">Rank Evolution</div>
+        ${svgChart}
+      </div>
+    </div>`;
+
   } catch(e) {
     box.innerHTML = `<div style="font-size:10px;color:var(--red)">Erro: ${e.message}</div>`;
   }
