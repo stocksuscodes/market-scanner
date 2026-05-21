@@ -840,7 +840,7 @@ Simons: ${s.score_simons}/3 | Livermore: ${s.score_livermore}/3 | PTJ: ${s.score
     box.style.fontStyle = 'normal';
     // Format with basic markdown-like styling
     box.innerHTML = (d.analysis || 'Sem resposta.').replace(/[*][*](.+?)[*][*]/g, '<strong style="color:var(--accent)">$1</strong>').split('\n').join('<br>');
-  } catch(e)) {
+  } catch(e) {
     box.textContent = 'Erro IA: ' + e.message;
   }
 }
