@@ -152,8 +152,10 @@ def prefiltro_russell(tickers: list, p_min: float = 5, p_max: float = 500,
             # Determinar sector
             sec_info = TICKER_SECTOR_MAP.get(ticker, {"etf": "—", "sector": "Outro"})
             passed.append({"ticker": ticker, "etf": sec_info["etf"], "sector": sec_info["sector"]})
-            time.sleep(0.05)
-        except Exception:
+            time.sleep(0.3)
+        except Exception as e:
+            if "429" in str(e):
+                time.sleep(2.0)  # Rate limit — espera mais
             continue
     return passed
 
@@ -1204,7 +1206,7 @@ def _run_russell_background():
             )
             if resultado:
                 sinais.append(resultado)
-            time.sleep(0.15)
+            time.sleep(0.3)
         sinais.sort(key=lambda x: (-x["score_total"], -x["rr"]))
         _cache["russell"]["sinais"]    = sinais
         _cache["russell"]["total"]     = len(tickers_filtrados)
