@@ -575,6 +575,55 @@ def score_markov(df):
     return score, notes
 
 
+def markov_detalhado(df):
+    """Devolve probabilidades Markov detalhadas para o quadro visual."""
+    if len(df) < 30:
+        return None
+    rets      = df["Close"].pct_change().fillna(0)
+    vol_ratio = (df["Volume"] / df["vol_ma20"].replace(0, np.nan)).fillna(1.0)
+    states    = [get_market_state(rets.iloc[i], vol_ratio.iloc[i]) for i in range(len(df))]
+    matrix    = np.zeros((4, 4))
+    for i in range(len(states)-1):
+        matrix[states[i]][states[i+1]] += 1
+    rs = matrix.sum(axis=1, keepdims=True)
+    rs[rs == 0] = 1
+    matrix /= rs
+
+    cur = states[-1]
+    names = {0:"Distribuição", 1:"Queda silenciosa", 2:"Recuperação", 3:"Força real"}
+
+    # Probabilidades para 1, 3 e 5 dias
+    sv1 = np.zeros(4); sv1[cur] = 1.0; sv1 = sv1 @ matrix
+    sv3 = np.zeros(4); sv3[cur] = 1.0
+    for _ in range(3): sv3 = sv3 @ matrix
+    sv5 = np.zeros(4); sv5[cur] = 1.0
+    for _ in range(5): sv5 = sv5 @ matrix
+
+    # Bull days nos últimos 5 e 10
+    bull5  = sum(1 for s in states[-5:]  if s in (2,3))
+    bull10 = sum(1 for s in states[-10:] if s in (2,3))
+
+    # Regime dominante últimos 20 dias
+    from collections import Counter
+    regime20 = Counter(states[-20:])
+    regime_nome = names[regime20.most_common(1)[0][0]]
+
+    return {
+        "estado_atual": names[cur],
+        "estado_idx": int(cur),
+        "prob_1d": {names[i]: round(float(sv1[i])*100, 1) for i in range(4)},
+        "prob_3d": {names[i]: round(float(sv3[i])*100, 1) for i in range(4)},
+        "prob_5d": {names[i]: round(float(sv5[i])*100, 1) for i in range(4)},
+        "bull_days_5": int(bull5),
+        "bull_days_10": int(bull10),
+        "regime_20d": regime_nome,
+        "prob_forca_3d": round(float(sv3[3])*100, 1),
+        "prob_forca_5d": round(float(sv5[3])*100, 1),
+        "prob_bull_1d": round(float(sv1[2]+sv1[3])*100, 1),
+        "prob_bull_3d": round(float(sv3[2]+sv3[3])*100, 1),
+    }
+
+
 # ─────────────────────────────────────────────
 #  FASE WYCKOFF
 # ─────────────────────────────────────────────
@@ -1053,6 +1102,9 @@ def api_lookup():
     ms_score, ms_notes, ms_vcp = score_minervini(df)
     ms_label = "FORTE" if ms_score >= 6 else "MÉDIO" if ms_score >= 4 else "FRACO"
 
+    # Markov detalhado
+    markov_data = markov_detalhado(df)
+
     return jsonify({
         "ticker": ticker, "etf": etf, "sector": setor,
         "price": round(preco, 2), "chg_pct": chg,
@@ -1069,6 +1121,7 @@ def api_lookup():
         "bars": len(df),
         "ms_score": ms_score, "ms_label": ms_label,
         "ms_notes": ms_notes, "ms_vcp": ms_vcp,
+        "markov": markov_data,
     })
 
 

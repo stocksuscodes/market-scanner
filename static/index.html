@@ -162,6 +162,27 @@
   .lookup-loading { color: var(--text3); font-size: 11px; margin-top: 10px; display: flex; align-items: center; gap: 8px; }
 
 
+  /* ── MARKOV QUADRO ── */
+  .markov-panel { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .markov-title { font-size: 9px; letter-spacing: 2px; color: var(--text3); text-transform: uppercase; margin-bottom: 10px; }
+  .markov-estado { display: inline-block; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; margin-bottom: 10px; }
+  .markov-estado.bull { background:#003820; border:1px solid #00e676; color:#00e676; }
+  .markov-estado.bear { background:#3a0000; border:1px solid #ff1744; color:#ff1744; }
+  .markov-estado.neut { background:#1a1a2a; border:1px solid #ffd600; color:#ffd600; }
+  .markov-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+  .markov-cell { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px; text-align: center; }
+  .markov-cell-lbl { font-size: 8px; color: var(--text3); letter-spacing: 1px; margin-bottom: 4px; }
+  .markov-cell-val { font-size: 18px; font-weight: 700; }
+  .markov-cell-sub { font-size: 9px; color: var(--text3); margin-top: 2px; }
+  .markov-bars { margin-bottom: 10px; }
+  .markov-bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+  .markov-bar-lbl { font-size: 9px; color: var(--text3); width: 110px; flex-shrink: 0; }
+  .markov-bar-track { flex: 1; height: 6px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+  .markov-bar-fill { height: 100%; border-radius: 3px; transition: width .3s; }
+  .markov-bar-pct { font-size: 10px; font-weight: 600; min-width: 36px; text-align: right; }
+  .markov-regime { font-size: 10px; color: var(--text3); }
+  .markov-regime span { color: var(--text); font-weight: 600; }
+
   /* ── ROTATION TABLE ── */
   .rot-table { width: 100%; border-collapse: collapse; font-size: 10px; }
   .rot-table th { font-size: 8px; letter-spacing: 1px; color: var(--text3); text-transform: uppercase; padding: 4px 8px; text-align: center; border-bottom: 1px solid var(--border); }
@@ -764,6 +785,7 @@ async function lookupTicker() {
             <button class="d-btn" onclick="window.open('https://www.tradingview.com/chart/?symbol=${s.ticker}','_blank')">↗ TradingView</button>
           </div>
           <div id="lookup-ai-box" style="margin-top:10px;font-size:11px;color:var(--text3);display:none"></div>
+          ${renderMarkovPanel(s.markov, s.rsi, s.adx)}
           ${renderMinerviniSection(s)}
           ${renderFmpSection(fmpData)}
         </div>`;
@@ -976,6 +998,67 @@ async function fetchFmpSignal(ticker) {
     return {trend,momentum,volume,signal,composite:(trend||0)+(momentum||0)+(volume||0)};
   } catch(e) { return null; }
 }
+function renderMarkovPanel(m, rsi, adx) {
+  if (!m) return '';
+
+  const isBull = m.estado_idx >= 2;
+  const estadoCls = isBull ? 'bull' : m.estado_idx === 1 ? 'bear' : 'neut';
+
+  // RSI zone
+  const rsiZone = rsi < 35 ? {label:'Sobrevendido', color:'#00e676'} :
+                  rsi < 45 ? {label:'Neutro-baixo',  color:'#69f0ae'} :
+                  rsi < 55 ? {label:'Neutro',         color:'#ffd600'} :
+                  rsi < 65 ? {label:'Neutro-alto',    color:'#ffab40'} :
+                             {label:'Sobrecomprado',  color:'#ff1744'};
+
+  // ADX strength
+  const adxStr = adx < 15 ? {label:'Sem tendência', color:'#555'} :
+                 adx < 25 ? {label:'Tendência fraca',color:'#ffd600'} :
+                 adx < 35 ? {label:'Tendência mod.', color:'#69f0ae'} :
+                            {label:'Tendência forte', color:'#00e676'};
+
+  const bars = [
+    { lbl: 'Bull 1d',         pct: m.prob_bull_1d, color: m.prob_bull_1d > 60 ? '#00e676' : m.prob_bull_1d > 40 ? '#ffd600' : '#ff1744' },
+    { lbl: 'Bull 3d',         pct: m.prob_bull_3d, color: m.prob_bull_3d > 60 ? '#00e676' : m.prob_bull_3d > 40 ? '#ffd600' : '#ff1744' },
+    { lbl: 'Força real 3d',   pct: m.prob_forca_3d, color: m.prob_forca_3d > 40 ? '#00e676' : '#ffd600' },
+    { lbl: 'Força real 5d',   pct: m.prob_forca_5d, color: m.prob_forca_5d > 40 ? '#00e676' : '#ffd600' },
+    { lbl: `RSI ${rsi}`,      pct: rsi, color: rsiZone.color, label: rsiZone.label },
+    { lbl: `ADX ${adx}`,      pct: Math.min(adx, 100), color: adxStr.color, label: adxStr.label },
+  ];
+
+  let barsHtml = bars.map(b => `
+    <div class="markov-bar-row">
+      <div class="markov-bar-lbl">${b.lbl}${b.label ? ' · '+b.label : ''}</div>
+      <div class="markov-bar-track">
+        <div class="markov-bar-fill" style="width:${b.pct}%;background:${b.color}"></div>
+      </div>
+      <div class="markov-bar-pct" style="color:${b.color}">${b.pct}%</div>
+    </div>`).join('');
+
+  return `<div class="markov-panel">
+    <div class="markov-title">◈ Probabilidades Markov + RSI + ADX</div>
+    <div class="markov-estado ${estadoCls}">${m.estado_atual}</div>
+    <div class="markov-grid">
+      <div class="markov-cell">
+        <div class="markov-cell-lbl">BULL DIAS 5d</div>
+        <div class="markov-cell-val" style="color:${m.bull_days_5>=3?'#00e676':'#ff1744'}">${m.bull_days_5}/5</div>
+        <div class="markov-cell-sub">últimos 5 dias</div>
+      </div>
+      <div class="markov-cell">
+        <div class="markov-cell-lbl">BULL DIAS 10d</div>
+        <div class="markov-cell-val" style="color:${m.bull_days_10>=6?'#00e676':'#ffd600'}">${m.bull_days_10}/10</div>
+        <div class="markov-cell-sub">últimos 10 dias</div>
+      </div>
+      <div class="markov-cell">
+        <div class="markov-cell-lbl">REGIME 20d</div>
+        <div class="markov-cell-val" style="font-size:11px;color:var(--text)">${m.regime_20d}</div>
+        <div class="markov-cell-sub">dominante</div>
+      </div>
+    </div>
+    <div class="markov-bars">${barsHtml}</div>
+  </div>`;
+}
+
 function renderMinerviniSection(s) {
   if (!s || s.ms_score === undefined) return '';
   const score = s.ms_score || 0;
