@@ -556,7 +556,7 @@ async function runScan() {
   }
 
   btn.disabled = false;
-  btn.textContent = '▶ Executar scan com dados Alpaca';
+  btn.textContent = '▶ Scan Top 5 Sectores';
 }
 
 function renderResults(signals) {
@@ -835,7 +835,9 @@ async function runRussellScan() {
       clearInterval(progInterval);
       btn.disabled = false;
       btn.textContent = '⟳ Scan Russell 3000';
-      alert(data.message);
+      // Show message in results area instead of alert
+      document.getElementById('results').innerHTML =
+        `<div class="empty-state" style="color:var(--amber)">⟳ ${data.message}</div>`;
       return;
     }
 
@@ -1025,6 +1027,11 @@ function renderFmpSection(fmp) {
 }
 
 loadSectores();
+// Garantir que botoes nao ficam disabled
+document.addEventListener('DOMContentLoaded', function() {
+  const rb = document.getElementById('run-btn-russell');
+  if (rb) rb.disabled = false;
+});
 </script>
 </body>
 </html>

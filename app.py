@@ -1084,19 +1084,29 @@ def api_scan_russell():
 
     # Railway: usar cache Russell se disponível
     if os.getenv("RAILWAY_ENVIRONMENT"):
-        cache = _cache.get("russell", {})
-        if not cache.get("sinais") and not cache.get("running"):
+        if "russell" not in _cache:
+            _cache["russell"] = {"sinais": [], "total": 0, "timestamp": None, "running": False}
+        cache = _cache["russell"]
+        # Start background scan if not running and no cache
+        if not cache["running"] and not cache["sinais"]:
             threading.Thread(target=_run_russell_background, daemon=True).start()
-        if cache.get("running") and not cache.get("sinais"):
             return jsonify({"sinais": [], "total": 0,
-                           "message": "A calcular Russell 3000... aguarda 5-10 min."})
-        filtered = [s for s in cache.get("sinais", [])
+                           "message": "A iniciar scan Russell 3000... clica de novo em 5-10 min.",
+                           "source": "russell3000"})
+        # Still running but no results yet
+        if cache["running"] and not cache["sinais"]:
+            return jsonify({"sinais": [], "total": 0,
+                           "message": "Russell 3000 em progresso... aguarda mais alguns minutos.",
+                           "source": "russell3000"})
+        # Have results
+        filtered = [s for s in cache["sinais"]
                     if p_min <= s["price"] <= p_max
                     and s["rsi"] <= rsi_max
                     and s["adx"] >= adx_min]
-        return jsonify({"sinais": filtered, "total": cache.get("total", 0),
-                       "cached_at": str(cache.get("timestamp")),
-                       "source": "russell3000"})
+        return jsonify({"sinais": filtered, "total": cache["total"],
+                       "cached_at": str(cache["timestamp"]),
+                       "source": "russell3000",
+                       "running": cache["running"]})
 
     # Local: pré-filtro + scan
     print(f"  [RUSSELL] Pré-filtro de {len(RUSSELL_3000_TICKERS)} tickers...", flush=True)
