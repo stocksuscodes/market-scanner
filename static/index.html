@@ -185,11 +185,12 @@
 
   /* ── ROTATION TABLE ── */
   .rot-table { width: 100%; border-collapse: collapse; font-size: 10px; table-layout: fixed; }
-  .rot-table th { font-size: 8px; letter-spacing: 0; color: var(--text3); text-transform: uppercase; padding: 4px 4px; text-align: center; border-bottom: 1px solid var(--border); }
-  .rot-table th:first-child { text-align: left; width: 30%; }
-  .rot-table th:not(:first-child) { width: 14%; }
-  .rot-table td { padding: 5px 4px; border-bottom: 1px solid var(--border3); text-align: center; }
-  .rot-table td:first-child { text-align: left; }
+  .rot-table colgroup col:first-child { width: 22%; }
+  .rot-table colgroup col { width: 15%; }
+  .rot-table th { font-size: 8px; letter-spacing: 0; color: var(--text3); text-transform: uppercase; padding: 3px 2px; text-align: center; border-bottom: 1px solid var(--border); white-space: nowrap; overflow: hidden; }
+  .rot-table th:first-child { text-align: left; }
+  .rot-table td { padding: 4px 2px; border-bottom: 1px solid var(--border3); text-align: center; }
+  .rot-table td:first-child { text-align: left; padding-right: 4px; }
   .rot-table tr:hover td { background: var(--bg3); }
   .rot-rank { font-weight: 700; font-size: 13px; }
   .rot-rank.top { color: var(--accent); }
@@ -403,8 +404,9 @@ async function loadRotacaoSectorial() {
 
     let html = '<table class="rot-table"><thead><tr>';
     html += '<th>Sector</th>';
-    semLabels.forEach(l => { html += `<th>${l}</th>`; });
-    html += '<th>Tend.</th></tr></thead><tbody>';
+    const shortLabels = ['Sem.1', 'Sem.-1', 'Sem.-2', 'Sem.-3'];
+    shortLabels.forEach(l => { html += `<th>${l}</th>`; });
+    html += '<th>▲▼</th></tr></thead><tbody>';
 
     hist.forEach(sec => {
       const tendCls = sec.tendencia === 'up' ? 'up' : sec.tendencia === 'down' ? 'down' : 'flat';
