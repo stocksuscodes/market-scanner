@@ -803,16 +803,34 @@ async function lookupAnalyzeAI(ticker) {
   box.style.display = 'block';
   box.style.fontStyle = 'italic';
   box.textContent = 'A consultar IA...';
-  // Reuse the last scan data for this ticker
   const s = (lastSignals.find(x => x.ticker === ticker)) || {};
   if (!s.ticker) { box.textContent = 'Corre a avaliação primeiro.'; return; }
   try {
-    const prompt = `És um analista técnico especializado em Wyckoff e SLJ. Analisa este ativo de forma concisa (3-4 linhas em português europeu):
-Ticker: ${s.ticker} | Sector: ${s.sector}
-Preço: $${s.price} | SMA200: $${s.sma200} | EMA21: $${s.ema21}
-RSI: ${s.rsi} | ADX: ${s.adx} | ATR: $${s.atr} | Vol Ratio: ${s.vol_ratio}x
-Fase Wyckoff: ${s.fase} | Sinal SLJ: ${s.slj} | Score: ${s.score_total}/15
-Stop: $${s.stop} | Alvo: $${s.alvo} | R/R: ${s.rr}:1`;
+    const m = s.markov || {};
+    const mscore = s.ms_score || 0;
+    const prompt = `És um analista técnico especializado em Wyckoff, Markov e SLJ. Responde APENAS com este formato exacto em português europeu:
+
+**LEITURA COMBINADA**
+[2-3 linhas interpretando os indicadores abaixo de forma integrada]
+
+**ESTRATÉGIA**
+- Acção: [COMPRAR / AGUARDAR / EVITAR]
+- Entrada: $[preço ideal de entrada baseado na técnica]
+- Stop: $${s.stop} ([justificação em 3 palavras])
+- Alvo 1: $${s.alvo} ([justificação em 3 palavras])
+- Alvo 2: $[segundo alvo mais ambicioso baseado no ATR]
+- R/R: ${s.rr}:1
+
+Dados:
+Ticker: ${s.ticker} | Sector: ${s.sector} | Preço actual: $${s.price}
+SMA200: $${s.sma200} | EMA21: $${s.ema21} | ATR: $${s.atr}
+RSI: ${s.rsi} | ADX: ${s.adx} | Vol Ratio: ${s.vol_ratio}x
+Fase Wyckoff: ${s.fase} | Sinal SLJ: ${s.slj} | Score SLJ: ${s.score_total}/15
+Minervini: ${mscore}/8 (${s.ms_label || '—'})
+Markov — Estado: ${m.estado_atual || '—'} | Bull 3d: ${m.prob_bull_3d || '—'}% | Força real 3d: ${m.prob_forca_3d || '—'}%
+Bull dias 5d: ${m.bull_days_5 || 0}/5 | Regime 20d: ${m.regime_20d || '—'}
+Simons: ${s.score_simons}/3 | Livermore: ${s.score_livermore}/3 | PTJ: ${s.score_ptj}/3 | Wyckoff: ${s.score_wyckoff}/3 | Markov: ${s.score_markov}/3`;
+
     const r = await fetch('/api/ai-analysis', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -820,7 +838,11 @@ Stop: $${s.stop} | Alvo: $${s.alvo} | R/R: ${s.rr}:1`;
     });
     const d = await r.json();
     box.style.fontStyle = 'normal';
-    box.textContent = d.analysis || 'Sem resposta.';
+    // Format with basic markdown-like styling
+    box.innerHTML = (d.analysis || 'Sem resposta.')
+      .replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--accent)">$1</strong>')
+      .replace(/
+/g, '<br>');
   } catch(e) {
     box.textContent = 'Erro IA: ' + e.message;
   }
