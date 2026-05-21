@@ -124,7 +124,7 @@ RUSSELL_3000_TICKERS = list(dict.fromkeys(RUSSELL_3000_TICKERS))
 
 
 def prefiltro_russell(tickers: list, p_min: float = 5, p_max: float = 500,
-                      vol_min: int = 500_000, adx_min: float = 15) -> list:
+                      vol_min: int = 100_000, adx_min: float = 10) -> list:
     """
     Pré-filtra uma lista de tickers pelos critérios básicos:
     preço, volume médio 20d, acima SMA200, ADX mínimo.
@@ -1132,7 +1132,7 @@ def _run_russell_background():
     print("  [RUSSELL] A iniciar scan Russell 3000 em background...", flush=True)
     try:
         tickers_filtrados = prefiltro_russell(RUSSELL_3000_TICKERS, p_min=5, p_max=500,
-                                               vol_min=500_000, adx_min=15)
+                                               vol_min=100_000, adx_min=10)
         print(f"  [RUSSELL] {len(tickers_filtrados)} passaram o pré-filtro", flush=True)
         sinais = []
         for item in tickers_filtrados:
