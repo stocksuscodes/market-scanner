@@ -162,6 +162,21 @@
   .lookup-loading { color: var(--text3); font-size: 11px; margin-top: 10px; display: flex; align-items: center; gap: 8px; }
 
 
+  /* ── PROBABILIDADE ── */
+  .prob-panel { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .prob-title { font-size: 9px; letter-spacing: 2px; color: var(--text3); text-transform: uppercase; margin-bottom: 10px; }
+  .prob-table { width: 100%; border-collapse: collapse; font-size: 10px; }
+  .prob-table th { font-size: 8px; letter-spacing: 1px; color: var(--text3); text-transform: uppercase; padding: 4px 6px; border-bottom: 1px solid var(--border); text-align: right; }
+  .prob-table th:first-child { text-align: left; }
+  .prob-table td { padding: 4px 6px; border-bottom: 1px solid var(--border3); }
+  .prob-table td:not(:first-child) { text-align: right; }
+  .prob-bar-wrap { height: 4px; background: var(--bg3); border-radius: 2px; margin-top: 3px; overflow: hidden; }
+  .prob-bar { height: 100%; border-radius: 2px; }
+  .prob-total-row td { font-weight: 700; border-top: 1px solid var(--border); padding-top: 6px; }
+  .prob-final { display: flex; align-items: center; gap: 12px; margin-top: 10px; padding: 8px 10px; background: var(--bg3); border-radius: 6px; }
+  .prob-final-num { font-size: 24px; font-weight: 700; }
+  .prob-final-lbl { font-size: 9px; color: var(--text3); }
+
   /* ── MARKOV QUADRO ── */
   .markov-panel { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
   .markov-title { font-size: 9px; letter-spacing: 2px; color: var(--text3); text-transform: uppercase; margin-bottom: 10px; }
@@ -838,6 +853,7 @@ async function lookupTicker() {
             <button class="d-btn" onclick="window.open('https://www.tradingview.com/chart/?symbol=${s.ticker}','_blank')">↗ TradingView</button>
           </div>
           <div id="lookup-ai-box" style="margin-top:10px;font-size:11px;color:var(--text3);display:none"></div>
+          ${renderProbPanel(s)}
           ${renderMarkovPanel(s.markov, s.rsi, s.adx)}
           ${renderMinerviniSection(s)}
           ${renderFmpSection(fmpData)}
@@ -969,10 +985,26 @@ async function gerarResumo(sinais, ranking, total) {
   tsEl.textContent = new Date().toLocaleTimeString('pt-PT');
 
   const nLong  = sinais.filter(s => s.slj === 'LONG').length;
-  const nShort = sinais.filter(s => s.slj === 'SHORT').length;
   const nWait  = sinais.filter(s => s.slj === 'AGUARDAR').length;
   const top5   = (ranking || []).slice(0, 5).map(r => `${r.nome} ${r.perf > 0 ? '+' : ''}${r.perf}%`).join(', ');
   const bestSLJ = sinais.length ? sinais[0] : null;
+
+  // Buscar SHORT do cache completo (sem filtro RSI)
+  let nShort = sinais.filter(s => s.slj === 'SHORT').length;
+  try {
+    const cacheR = await fetch('/api/cache/status');
+    const cacheD = await cacheR.json();
+    // If cache has more sinais than filtered, count SHORT from cache
+    if (cacheD && cacheD.sinais > sinais.length) {
+      const allR = await fetch('/api/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tickers: [], p_min: 0, p_max: 99999, adx_min: 0, rsi_max: 100 })
+      });
+      const allD = await allR.json();
+      nShort = (allD.sinais || []).filter(s => s.slj === 'SHORT').length;
+    }
+  } catch(e) {}
 
   // Stats line
   statsEl.innerHTML = `
@@ -1070,6 +1102,85 @@ async function fetchFmpSignal(ticker) {
     return {trend,momentum,volume,signal,composite:(trend||0)+(momentum||0)+(volume||0)};
   } catch(e) { return null; }
 }
+function calcProb(fase, slj, score_total, ms_score, prob_bull_3d) {
+  // Base probability from Wyckoff phase + SLJ signal
+  const baseMap = {
+    'Spring_LONG':       70, 'Spring_AGUARDAR':   45, 'Spring_SHORT':      20,
+    'Acumulação_LONG':   61, 'Acumulação_AGUARDAR':38, 'Acumulação_SHORT':  15,
+    'Markup_LONG':       54, 'Markup_AGUARDAR':   35, 'Markup_SHORT':      25,
+    'Distribuição_SHORT':58, 'Distribuição_AGUARDAR':32, 'Distribuição_LONG': 20,
+    'Markdown_SHORT':    63, 'Markdown_LONG':     15, 'Markdown_AGUARDAR': 28,
+    'Test_LONG':         47, 'Test_AGUARDAR':     35, 'Test_SHORT':        40,
+  };
+  const base = baseMap[`${fase}_${slj}`] || 35;
+
+  // Adjustments
+  const adjScore    = score_total >= 12 ? 10 : score_total >= 7 ? 5 : score_total >= 4 ? 0 : -10;
+  const adjMini     = ms_score >= 7 ? 8 : ms_score >= 5 ? 4 : ms_score >= 3 ? 0 : -5;
+  const adjMarkov   = prob_bull_3d > 60 ? 5 : prob_bull_3d < 40 ? -5 : 0;
+  const total = Math.min(95, Math.max(5, base + adjScore + adjMini + adjMarkov));
+
+  return { base, adjScore, adjMini, adjMarkov, total };
+}
+
+function probColor(pct) {
+  return pct >= 65 ? '#00e676' : pct >= 50 ? '#ffd600' : '#ff6b6b';
+}
+
+function renderProbPanel(s) {
+  if (!s || !s.fase || !s.slj) return '';
+  const m = s.markov || {};
+  const p = calcProb(s.fase, s.slj, s.score_total, s.ms_score || 0, m.prob_bull_3d || 50);
+
+  const rows = [
+    { label: 'Base Wyckoff + SLJ',  hist: p.base,  adj: '—',                          adjVal: p.base },
+    { label: 'Ajuste Score SLJ',    hist: '—',     adj: (p.adjScore >= 0 ? '+' : '') + p.adjScore + '%', adjVal: p.base + p.adjScore },
+    { label: 'Ajuste Minervini',    hist: '—',     adj: (p.adjMini  >= 0 ? '+' : '') + p.adjMini  + '%', adjVal: p.base + p.adjScore + p.adjMini },
+    { label: 'Ajuste Markov',       hist: '—',     adj: (p.adjMarkov>= 0 ? '+' : '') + p.adjMarkov+ '%', adjVal: p.total },
+  ];
+
+  let rowsHtml = rows.map((row, i) => {
+    const histPct = typeof row.hist === 'number' ? row.hist : null;
+    const histBar = histPct ? `<div class="prob-bar-wrap"><div class="prob-bar" style="width:${histPct}%;background:${probColor(histPct)}"></div></div>` : '';
+    const adjIsNum = typeof row.adjVal === 'number' && i > 0;
+    const adjBar = adjIsNum ? `<div class="prob-bar-wrap"><div class="prob-bar" style="width:${row.adjVal}%;background:${probColor(row.adjVal)}"></div></div>` : '';
+    return `<tr>
+      <td style="color:var(--text3)">${row.label}</td>
+      <td>${histPct !== null ? `<strong style="color:${probColor(histPct)}">${histPct}%</strong>${histBar}` : '<span style="color:var(--text3)">—</span>'}</td>
+      <td>${i === 0 ? `<strong style="color:${probColor(p.base)}">${p.base}%</strong>` : `<span style="color:${p.adjScore < 0 || (i===2 && p.adjMini<0) || (i===3 && p.adjMarkov<0) ? '#ff6b6b':'#69f0ae'}">${row.adj}</span>${adjBar}`}</td>
+    </tr>`;
+  }).join('');
+
+  const finalColor = probColor(p.total);
+  const finalLabel = p.total >= 65 ? 'Alta probabilidade' : p.total >= 50 ? 'Probabilidade moderada' : 'Baixa probabilidade';
+
+  return `<div class="prob-panel">
+    <div class="prob-title">◉ Probabilidade de Sucesso</div>
+    <table class="prob-table">
+      <thead><tr><th>Componente</th><th>Histórica</th><th>Ajustada</th></tr></thead>
+      <tbody>
+        ${rowsHtml}
+        <tr class="prob-total-row">
+          <td>TOTAL</td>
+          <td><strong style="color:${probColor(p.base)}">${p.base}%</strong></td>
+          <td><strong style="color:${finalColor}">${p.total}%</strong></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="prob-final">
+      <div>
+        <div class="prob-final-num" style="color:${finalColor}">${p.total}%</div>
+        <div class="prob-final-lbl">${finalLabel}</div>
+      </div>
+      <div style="flex:1">
+        <div class="prob-bar-wrap" style="height:8px">
+          <div class="prob-bar" style="width:${p.total}%;background:${finalColor}"></div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
 function renderMarkovPanel(m, rsi, adx) {
   if (!m) return '';
 
