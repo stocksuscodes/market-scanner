@@ -303,6 +303,13 @@
     <div id="rotation-table" style="overflow-x:auto;margin-bottom:12px;">
       <div style="font-size:10px;color:var(--text3);font-style:italic;">A carregar rotação sectorial...</div>
     </div>
+    <div id="rotation-ai-box" style="display:none;margin-top:10px;">
+      <button class="run-btn" id="btn-rot-ai" onclick="analisarRotacao()" style="padding:6px 16px;font-size:11px;">
+        ⬡ Analisar Rotação com IA
+      </button>
+      <div id="rot-ai-result" style="display:none;margin-top:10px;font-size:11px;color:var(--text);line-height:1.8;padding:10px;background:var(--bg3);border-radius:6px;border:1px solid var(--border);"></div>
+    </div>
+
     <!-- Sectores detalhe (colapsável) -->
     <div id="sectors-detalhe" style="display:none;margin-bottom:12px;">
       <div class="config-title" style="margin-top:8px;">Tickers por sector</div>
@@ -484,11 +491,60 @@ async function loadRotacaoSectorial() {
       ${grid}${xLabels}${lines}${dots}${labels}
     </svg>`;
 
+    // Add AI analysis button below table
+    const aiBox = document.getElementById('rotation-ai-box');
+    if (aiBox) aiBox.style.display = 'block';
     box.innerHTML = tableHtml;
 
   } catch(e) {
     box.innerHTML = `<div style="font-size:10px;color:var(--red)">Erro: ${e.message}</div>`;
   }
+}
+
+async function analisarRotacao() {
+  const btn = document.getElementById('btn-rot-ai');
+  const box = document.getElementById('rot-ai-result');
+  btn.disabled = true;
+  btn.textContent = '⟳ A analisar...';
+  box.style.display = 'block';
+  box.innerHTML = '<div style="font-size:11px;color:var(--text3);font-style:italic;">A gerar análise de rotação sectorial...</div>';
+
+  // Gather sector data from table
+  const rows = document.querySelectorAll('.rot-table tbody tr');
+  let sectorData = [];
+  rows.forEach(row => {
+    const cells = row.querySelectorAll('td');
+    if (cells.length >= 2) {
+      const nome = cells[0].querySelector('.rot-nome')?.textContent || '';
+      const etf  = cells[0].querySelector('.rot-etf')?.textContent || '';
+      const sem1 = cells[1]?.textContent?.trim().replace(/\s+/g,' ') || '';
+      sectorData.push(`${nome}(${etf}): ${sem1}`);
+    }
+  });
+
+  const prompt = `És um analista especializado em rotação sectorial. Com base nestes dados de ranking sectorial das últimas 4 semanas, faz uma análise em português europeu (máximo 6 linhas):
+
+Ranking actual (Sem.1 = esta semana):
+${sectorData.join('\n')}
+
+Identifica: 1) sectores em aceleração (a subir no ranking), 2) sectores em deterioração (a cair), 3) qual a rotação mais provável nas próximas 1-2 semanas, 4) recomendação prática de posicionamento.`;
+
+  try {
+    const r = await fetch('/api/ai-analysis', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
+    });
+    const d = await r.json();
+    box.innerHTML = (d.analysis || 'Sem resposta.')
+      .replace(/[*][*](.+?)[*][*]/g, '<strong style="color:var(--accent)">$1</strong>')
+      .split('\n').join('<br>');
+  } catch(e) {
+    box.innerHTML = `<div style="color:var(--red)">Erro: ${e.message}</div>`;
+  }
+
+  btn.disabled = false;
+  btn.textContent = '⬡ Analisar Rotação com IA';
 }
 
 async function loadSectores() {
