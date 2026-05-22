@@ -307,7 +307,7 @@
       <button class="run-btn" id="btn-rot-ai" onclick="analisarRotacao()" style="padding:6px 16px;font-size:11px;">
         ⬡ Analisar Rotação com IA
       </button>
-      <div id="rot-ai-result" style="display:none;margin-top:10px;font-size:11px;color:var(--text);line-height:1.8;padding:10px;background:var(--bg3);border-radius:6px;border:1px solid var(--border);"></div>
+      <div id="rot-ai-result" style="display:none;margin-top:10px;"></div>
     </div>
 
     <!-- Sectores detalhe (colapsável) -->
@@ -529,16 +529,70 @@ ${sectorData.join('\n')}
 
 Identifica: 1) sectores em aceleração (a subir no ranking), 2) sectores em deterioração (a cair), 3) qual a rotação mais provável nas próximas 1-2 semanas, 4) recomendação prática de posicionamento.`;
 
+  const structuredPrompt = prompt + `
+
+Responde APENAS neste formato JSON (sem markdown, sem texto extra):
+{
+  "aceleracao": ["sector1", "sector2"],
+  "deterioracao": ["sector1", "sector2"],
+  "rotacao_provavel": "texto curto 1-2 linhas",
+  "sobreponderar": ["sector1", "sector2"],
+  "manter": ["sector1", "sector2"],
+  "subponderar": ["sector1", "sector2"]
+}`;
+
   try {
     const r = await fetch('/api/ai-analysis', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt })
+      body: JSON.stringify({ prompt: structuredPrompt })
     });
     const d = await r.json();
-    box.innerHTML = (d.analysis || 'Sem resposta.')
-      .replace(/[*][*](.+?)[*][*]/g, '<strong style="color:var(--accent)">$1</strong>')
-      .split('\n').join('<br>');
+    let parsed = null;
+    try {
+      const txt = (d.analysis || '').replace(/```json|```/g, '').trim();
+      parsed = JSON.parse(txt);
+    } catch(e) {}
+
+    if (parsed) {
+      const tag = (items, color) => (items||[]).map(s =>
+        `<span style="display:inline-block;padding:2px 8px;margin:2px;border-radius:3px;background:${color}22;border:1px solid ${color};color:${color};font-size:10px;">${s}</span>`
+      ).join('');
+
+      box.innerHTML = `
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:11px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+            <div>
+              <div style="font-size:8px;letter-spacing:1px;color:#00e676;text-transform:uppercase;margin-bottom:6px;">▲ Aceleração</div>
+              <div>${tag(parsed.aceleracao, '#00e676')}</div>
+            </div>
+            <div>
+              <div style="font-size:8px;letter-spacing:1px;color:#ff1744;text-transform:uppercase;margin-bottom:6px;">▼ Deterioração</div>
+              <div>${tag(parsed.deterioracao, '#ff1744')}</div>
+            </div>
+          </div>
+          <div style="margin-bottom:12px;padding:8px;background:var(--bg2);border-radius:4px;">
+            <div style="font-size:8px;letter-spacing:1px;color:var(--text3);text-transform:uppercase;margin-bottom:4px;">⟳ Rotação Provável</div>
+            <div style="color:var(--text);line-height:1.6;">${parsed.rotacao_provavel || '—'}</div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+            <div>
+              <div style="font-size:8px;letter-spacing:1px;color:#00e676;text-transform:uppercase;margin-bottom:6px;">▲ Sobreponderar</div>
+              <div>${tag(parsed.sobreponderar, '#00e676')}</div>
+            </div>
+            <div>
+              <div style="font-size:8px;letter-spacing:1px;color:#ffd600;text-transform:uppercase;margin-bottom:6px;">— Manter</div>
+              <div>${tag(parsed.manter, '#ffd600')}</div>
+            </div>
+            <div>
+              <div style="font-size:8px;letter-spacing:1px;color:#ff1744;text-transform:uppercase;margin-bottom:6px;">▼ Subponderar</div>
+              <div>${tag(parsed.subponderar, '#ff1744')}</div>
+            </div>
+          </div>
+        </div>`;
+    } else {
+      box.innerHTML = `<div style="font-size:11px;color:var(--text);line-height:1.8;padding:10px;background:var(--bg3);border-radius:6px;border:1px solid var(--border);">${(d.analysis||'').replace(/[*][*](.+?)[*][*]/g,'<strong>$1</strong>').split('\n').join('<br>')}</div>`;
+    }
   } catch(e) {
     box.innerHTML = `<div style="color:var(--red)">Erro: ${e.message}</div>`;
   }
