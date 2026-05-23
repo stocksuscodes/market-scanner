@@ -1025,23 +1025,40 @@ Simons: ${s.score_simons}/3 | Livermore: ${s.score_livermore}/3 | PTJ: ${s.score
 
 
 // ── RESUMO IA ─────────────────────────────────
-async function runRussellScan() {
-  const btn = document.getElementById('run-btn-russell');
-  btn.disabled = true;
-  btn.textContent = '⟳ A filtrar Russell 3000...';
+let russellPolling = null;
 
-  const pMin   = parseFloat(document.getElementById('p-min').value)   || 5;
-  const pMax   = parseFloat(document.getElementById('p-max').value)   || 500;
-  const adxMin = parseFloat(document.getElementById('adx-min').value) || 15;
-  const rsiMax = parseFloat(document.getElementById('rsi-max').value) || 75;
+function notificarRussell(nSinais) {
+  // Browser notification
+  if ('Notification' in window) {
+    if (Notification.permission === 'granted') {
+      new Notification('Market Scanner Pro', {
+        body: `✅ Russell 3000 completo! ${nSinais} sinais encontrados.`,
+        icon: '/favicon.ico'
+      });
+    } else if (Notification.permission !== 'denied') {
+      Notification.requestPermission().then(p => {
+        if (p === 'granted') {
+          new Notification('Market Scanner Pro', {
+            body: `✅ Russell 3000 completo! ${nSinais} sinais encontrados.`,
+          });
+        }
+      });
+    }
+  }
+  // Visual banner
+  let banner = document.getElementById('russell-banner');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'russell-banner';
+    banner.style.cssText = 'position:fixed;top:60px;right:20px;z-index:9999;padding:12px 18px;background:#0d2b1a;border:1px solid #3fb950;border-radius:8px;color:#3fb950;font-size:12px;font-family:monospace;box-shadow:0 4px 20px rgba(63,185,80,0.3);cursor:pointer;';
+    banner.onclick = () => banner.remove();
+    document.body.appendChild(banner);
+  }
+  banner.innerHTML = `✅ Russell 3000 completo! <strong>${nSinais} sinais</strong> encontrados.<br><span style="font-size:10px;color:#8b949e">Clica para fechar</span>`;
+  setTimeout(() => { if (banner) banner.remove(); }, 15000);
+}
 
-  // Progress simulation
-  let dots = 0;
-  const progInterval = setInterval(() => {
-    dots = (dots + 1) % 4;
-    btn.textContent = '⟳ Russell 3000' + '.'.repeat(dots);
-  }, 800);
-
+async function pollRussell(pMin, pMax, adxMin, rsiMax) {
   try {
     const r = await fetch('/api/scan/russell', {
       method: 'POST',
@@ -1049,20 +1066,18 @@ async function runRussellScan() {
       body: JSON.stringify({ p_min: pMin, p_max: pMax, adx_min: adxMin, rsi_max: rsiMax })
     });
     const data = await r.json();
+    const btn = document.getElementById('run-btn-russell');
 
     if (data.message) {
-      clearInterval(progInterval);
-      btn.disabled = false;
-      btn.textContent = '⟳ Scan Russell 3000';
-      // Show message in results area instead of alert
-      document.getElementById('results').innerHTML =
-        `<div class="empty-state" style="color:var(--amber)">⟳ ${data.message}</div>`;
-      return;
+      // Still running — continue polling
+      return false;
     }
 
+    // Done!
+    clearInterval(russellPolling);
+    russellPolling = null;
     const signals = data.sinais || [];
     lastSignals = signals;
-    clearInterval(progInterval);
 
     document.getElementById('m-total').textContent = data.total;
     document.getElementById('m-long').textContent  = signals.filter(s => s.slj === 'LONG').length;
@@ -1073,11 +1088,74 @@ async function runRussellScan() {
 
     btn.disabled = false;
     btn.textContent = `✓ Russell 3000 (${signals.length} sinais)`;
+    btn.style.borderColor = '#3fb950';
+
+    notificarRussell(signals.length);
+    return true;
   } catch(e) {
-    clearInterval(progInterval);
+    return false;
+  }
+}
+
+async function runRussellScan() {
+  const btn = document.getElementById('run-btn-russell');
+
+  // Request notification permission upfront
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+
+  btn.disabled = true;
+  btn.textContent = '⟳ A iniciar Russell 3000...';
+
+  const pMin   = parseFloat(document.getElementById('p-min').value)   || 5;
+  const pMax   = parseFloat(document.getElementById('p-max').value)   || 500;
+  const adxMin = parseFloat(document.getElementById('adx-min').value) || 15;
+  const rsiMax = parseFloat(document.getElementById('rsi-max').value) || 75;
+
+  // First call to start background scan
+  try {
+    const r = await fetch('/api/scan/russell', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_min: pMin, p_max: pMax, adx_min: adxMin, rsi_max: rsiMax })
+    });
+    const data = await r.json();
+
+    if (!data.message) {
+      // Results already available
+      const signals = data.sinais || [];
+      lastSignals = signals;
+      document.getElementById('m-total').textContent = data.total;
+      document.getElementById('m-long').textContent  = signals.filter(s => s.slj === 'LONG').length;
+      document.getElementById('m-rr').textContent    = signals.length ? signals[0].rr + 'x' : '—';
+      renderResults(signals);
+      gerarResumo(signals, [], data.total || 0);
+      btn.disabled = false;
+      btn.textContent = `✓ Russell 3000 (${signals.length} sinais)`;
+      notificarRussell(signals.length);
+      return;
+    }
+
+    // Show message and start polling
+    document.getElementById('results').innerHTML =
+      `<div class="empty-state" style="color:#f0a500;">⟳ ${data.message}</div>`;
+    btn.disabled = false;
+    btn.textContent = '⟳ Russell 3000 em progresso...';
+
+    // Poll every 60 seconds
+    if (russellPolling) clearInterval(russellPolling);
+    let dots = 0;
+    russellPolling = setInterval(async () => {
+      dots = (dots + 1) % 4;
+      btn.textContent = '⟳ Russell 3000' + '.'.repeat(dots + 1);
+      const done = await pollRussell(pMin, pMax, adxMin, rsiMax);
+      if (done) btn.style.borderColor = '#3fb950';
+    }, 60000);
+
+  } catch(e) {
     btn.disabled = false;
     btn.textContent = '⟳ Scan Russell 3000';
-    alert('Erro: ' + e.message);
   }
 }
 
