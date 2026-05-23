@@ -6,21 +6,26 @@
 <title>Market Scanner Pro</title>
 <style>
   :root {
-    --bg: #ffffff;
-    --bg2: #f7f7f7;
-    --bg3: #eeeeee;
-    --border: #e0e0e0;
-    --border2: #cccccc;
-    --text: #111111;
-    --text2: #444444;
-    --text3: #888888;
-    --green: #16a34a;
-    --green-bg: #dcfce7;
-    --green-border: #86efac;
-    --red: #dc2626;
-    --red-bg: #fee2e2;
-    --amber: #f59e0b;
-    --teal: #2dd4bf;
+    --bg: #0d1117;
+    --bg2: #161b22;
+    --bg3: #21262d;
+    --border: #30363d;
+    --border2: #444c56;
+    --border3: #30363d;
+    --text: #ffffff;
+    --text2: #c9d1d9;
+    --text3: #8b949e;
+    --accent: #00bcd4;
+    --accent2: #4dd0e1;
+    --green: #3fb950;
+    --green-bg: #0d2b1a;
+    --green-border: #3fb950;
+    --red: #f85149;
+    --red-bg: #2d1117;
+    --amber: #f0a500;
+    --yellow: #e6a817;
+    --teal: #00bcd4;
+    --purple: #bc8cff;
     --font: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -206,7 +211,7 @@
   .rot-table td:first-child { text-align: left; }
   .rot-table tr:hover td { background: var(--bg3); }
   .rot-rank { font-weight: 700; font-size: 13px; }
-  .rot-rank.top { color: var(--accent); }
+  .rot-rank.top { color: #f0a500; }
   .rot-rank.mid { color: var(--text); }
   .rot-rank.bot { color: var(--text3); }
   .rot-perf { font-size: 9px; }
@@ -217,11 +222,11 @@
   .rot-tend.down { color: #ff1744; }
   .rot-tend.flat { color: #ffd600; }
   .rot-week-num { display: inline-block; width: 22px; height: 22px; border-radius: 50%; line-height: 22px; font-weight: 700; font-size: 11px; }
-  .rot-week-num.top1 { background:#00e676;color:#000; }
-  .rot-week-num.top2 { background:#69f0ae;color:#000; }
-  .rot-week-num.top3 { background:#1e4d3a;color:#00e676; }
+  .rot-week-num.top1 { background:#3fb950;color:#0d1117; }
+  .rot-week-num.top2 { background:#56d364;color:#0d1117; }
+  .rot-week-num.top3 { background:#0d2b1a;color:#3fb950; }
   .rot-week-num.mid  { background:#4a5a6a;color:#e0e8f0; }
-  .rot-week-num.bot  { background:#ff1744;color:#fff; }
+  .rot-week-num.bot  { background:#f85149;color:#fff; }
 
   /* ── SIGNAL SCAN (FMP) ── */
   .signal-section { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
