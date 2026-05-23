@@ -1153,6 +1153,45 @@ Dá uma leitura do estado do mercado, o que os sectores líderes sugerem, e uma 
   }
 }
 
+function renderMarkovPanel(m, rsi, adx) {
+  if (!m) return '';
+  const isBull = m.estado_idx >= 2;
+  const estadoCls = isBull ? 'bull' : m.estado_idx === 1 ? 'bear' : 'neut';
+  const rsiZone = rsi < 35 ? {label:'Sobrevendido',color:'#3fb950'} :
+                  rsi < 45 ? {label:'Neutro-baixo', color:'#56d364'} :
+                  rsi < 55 ? {label:'Neutro',        color:'#f0a500'} :
+                  rsi < 65 ? {label:'Neutro-alto',   color:'#ffab40'} :
+                             {label:'Sobrecomprado', color:'#f85149'};
+  const adxStr = adx < 15 ? {label:'Sem tendência',  color:'#555'} :
+                 adx < 25 ? {label:'Tendência fraca', color:'#f0a500'} :
+                 adx < 35 ? {label:'Tendência mod.',  color:'#56d364'} :
+                            {label:'Tendência forte', color:'#3fb950'};
+  const bars = [
+    { lbl:'Bull 1d',       pct:m.prob_bull_1d,  color:m.prob_bull_1d>60?'#3fb950':m.prob_bull_1d>40?'#f0a500':'#f85149' },
+    { lbl:'Bull 3d',       pct:m.prob_bull_3d,  color:m.prob_bull_3d>60?'#3fb950':m.prob_bull_3d>40?'#f0a500':'#f85149' },
+    { lbl:'Força real 3d', pct:m.prob_forca_3d, color:m.prob_forca_3d>40?'#3fb950':'#f0a500' },
+    { lbl:'Força real 5d', pct:m.prob_forca_5d, color:m.prob_forca_5d>40?'#3fb950':'#f0a500' },
+    { lbl:`RSI ${rsi}`,    pct:rsi,             color:rsiZone.color, label:rsiZone.label },
+    { lbl:`ADX ${adx}`,    pct:Math.min(adx,100), color:adxStr.color, label:adxStr.label },
+  ];
+  let barsHtml = bars.map(b => `
+    <div class="markov-bar-row">
+      <div class="markov-bar-lbl">${b.lbl}${b.label?' · '+b.label:''}</div>
+      <div class="markov-bar-track"><div class="markov-bar-fill" style="width:${b.pct}%;background:${b.color}"></div></div>
+      <div class="markov-bar-pct" style="color:${b.color}">${b.pct}%</div>
+    </div>`).join('');
+  return `<div class="markov-panel">
+    <div class="markov-title">◈ Probabilidades Markov + RSI + ADX</div>
+    <div class="markov-estado ${estadoCls}">${m.estado_atual}</div>
+    <div class="markov-grid">
+      <div class="markov-cell"><div class="markov-cell-lbl">BULL DIAS 5d</div><div class="markov-cell-val" style="color:${m.bull_days_5>=3?'#3fb950':'#f85149'}">${m.bull_days_5}/5</div><div class="markov-cell-sub">últimos 5 dias</div></div>
+      <div class="markov-cell"><div class="markov-cell-lbl">BULL DIAS 10d</div><div class="markov-cell-val" style="color:${m.bull_days_10>=6?'#3fb950':'#f0a500'}">${m.bull_days_10}/10</div><div class="markov-cell-sub">últimos 10 dias</div></div>
+      <div class="markov-cell"><div class="markov-cell-lbl">REGIME 20d</div><div class="markov-cell-val" style="font-size:11px;color:var(--text)">${m.regime_20d}</div><div class="markov-cell-sub">dominante</div></div>
+    </div>
+    <div class="markov-bars">${barsHtml}</div>
+  </div>`;
+}
+
 function calcProb(fase, slj, score_total, ms_score, prob_bull_3d) {
   const baseMap = {
     'Spring_LONG':70,'Spring_AGUARDAR':45,'Spring_SHORT':20,
