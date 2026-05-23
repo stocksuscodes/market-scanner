@@ -768,7 +768,8 @@ function renderResults(signals) {
   const filterBtns = `
     <div class="filter-bar">
       <button class="f-btn active" onclick="applyFilter('all',this)">Todos (${signals.length})</button>
-      <button class="f-btn" onclick="applyFilter('long',this)">LONG (${signals.filter(s=>s.slj==='LONG').length})</button>
+      <button class="f-btn s-long" onclick="applyFilter('long',this)">LONG (${signals.filter(s=>s.slj==='LONG').length})</button>
+      <button class="f-btn s-short" onclick="applyFilter('short',this)">SHORT (${signals.filter(s=>s.slj==='SHORT').length})</button>
       <button class="f-btn" onclick="applyFilter('watch',this)">Vigiar (${signals.filter(s=>s.slj==='AGUARDAR').length})</button>
       ${etfsPresentes.map(e => `<button class="f-btn" onclick="applyFilter('${e}',this)">${e}</button>`).join('')}
     </div>`;
@@ -835,6 +836,7 @@ function applyFilter(type, btn) {
   btn.classList.add('active');
   let filtered = lastSignals;
   if (type === 'long')  filtered = lastSignals.filter(s => s.slj === 'LONG');
+  else if (type === 'short') filtered = lastSignals.filter(s => s.slj === 'SHORT');
   else if (type === 'watch') filtered = lastSignals.filter(s => s.slj === 'AGUARDAR');
   else if (type !== 'all')   filtered = lastSignals.filter(s => s.etf === type);
   renderRows(filtered);
