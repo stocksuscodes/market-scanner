@@ -1276,6 +1276,24 @@ function renderMinerviniSection(s) {
   </div>`;
 }
 
+function fmpDots(value, total, isBull) {
+  const absVal = Math.abs(value || 0);
+  const filled = Math.round((absVal / 10) * total);
+  let html = '<div class="signal-dots">';
+  for (let i = 0; i < total; i++) {
+    const active = i < filled;
+    const color = isBull ? (active ? '#3fb950' : '#0d2b1a') : (active ? '#f85149' : '#3a0d0d');
+    html += `<div class="signal-dot" style="background:${color};opacity:${active?1:0.3};box-shadow:${active?'0 0 4px '+color:'none'}"></div>`;
+  }
+  return html + '</div>';
+}
+function fmpSignalClass(s) {
+  return {STRONG_BUY:'sig-strong-buy',BUY:'sig-buy',NEUTRAL:'sig-neutral',SELL:'sig-sell',STRONG_SELL:'sig-strong-sell'}[s]||'sig-neutral';
+}
+function fmpSignalLabel(s) {
+  return {STRONG_BUY:'STRONG BUY',BUY:'BUY',NEUTRAL:'NEUTRAL',SELL:'SELL',STRONG_SELL:'STRONG SELL'}[s]||'NEUTRAL';
+}
+
 function renderFmpSection(fmp) {
   if(!fmp) return '<div class="signal-section"><div class="signal-loading">Signal Scan indisponível</div></div>';
   const sc=fmpSignalClass(fmp.signal), sl=fmpSignalLabel(fmp.signal);
