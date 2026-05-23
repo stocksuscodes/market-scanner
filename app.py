@@ -303,6 +303,34 @@ SECTORES = [
         "RIVN","LCID","NIO","XPEV","LI","FSR","GOEV","MULN","ZEV","RIDE",
         "WKHS","HYLN","SOLO","MVST","IDEX","NKLA","ACHR","JOBY","LILM","SPCE",
     ]},
+    # Temático — Computação Quântica
+    {"etf": "QTUM", "nome": "Quântica", "tickers": [
+        "IONQ","RGTI","QBTS","QUBT","IBM","GOOGL","HON","MSFT","NVDA","INTC",
+        "ARQQ","KEYS","TER","AMZN","LAES","BIDU","BABA","ASML","AMAT","FORM",
+        "COHR","LSCC","ADI","TXN","AVGO","MRVL","SNPS","CDNS","AMD","IFNNY",
+        "STM","MU","LRCX","KLAC","ENTG","BRKR","MKSI","SWKS","QRVO","QTUM",
+    ]},
+    # Temático — Economia Espacial
+    {"etf": "UFO", "nome": "Espacial", "tickers": [
+        "RKLB","LUNR","RDW","NOC","ASTR","SPIR","BKSY","PL","HWM","GE",
+        "SPCE","SATL","MOOG","TDG","HEI","TXT","HON","BALL","VSAT","GRMN",
+        "TRMB","CW","HXL","HII","RTX","GD","BAESY","SAFRY","EADSY","RYCEY",
+        "KTOS","PSN","UFO","AVAV","LMT","LHX","LDOS","SPR","WWD","KAMN",
+    ]},
+    # Temático — Conectividade Global e Satélites
+    {"etf": "XTL", "nome": "Conectividade", "tickers": [
+        "ASTS","SATS","IRDM","GSAT","VSAT","GILT","KVHI","CMTL","SGBAF","GOGO",
+        "VIAV","AKAM","NOK","ERIC","ANSS","CIEN","JNPR","EXTR","FFIV","LITE",
+        "INFN","QCOM","AVGO","CSCO","ANET","GLW","ZBRA","TRMB","GRMN","TMUS",
+        "VZ","T","CHTR","CMCSA","LBTYA","ORAN","TEF","DTEGY","XTL","DTEGY",
+    ]},
+    # Temático — Cibersegurança Pós-Quântica
+    {"etf": "CIBR", "nome": "Cibersegurança", "tickers": [
+        "NET","CRWD","ZS","PANW","FTNT","OKTA","S","CHKP","BAH","GD",
+        "CACI","SAIC","BAESY","AVGO","CSCO","FSLY","ESTC","DDOG","LDOS","PSN",
+        "LHX","RTX","TENB","RPD","CYBR","VRNS","GEN","QLYS","BB","TMICY",
+        "NTCT","J","HON","LMT","NOC","PLTR","SNOW","IBM","ORCL","FFIV","CIBR",
+    ]},
 ]
 
 TICKER_SECTOR_MAP = {}
@@ -920,7 +948,7 @@ def api_preco(ticker):
 
 @app.route("/api/ai-analysis", methods=["POST"])
 def api_ai_analysis():
-    ANTHROPIC_KEY = os.getenv("ANTHROPIC_API_KEY", "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")
+    ANTHROPIC_KEY = os.getenv("ANTHROPIC_API_KEY", "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")
     body   = request.get_json() or {}
     prompt = body.get("prompt", "")
     if not ANTHROPIC_KEY:
