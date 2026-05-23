@@ -965,7 +965,7 @@ async function lookupTicker() {
           ${renderProbPanel(s)}
           ${renderMarkovPanel(s.markov, s.rsi, s.adx)}
           ${renderMinerviniSection(s)}
-          ${renderFmpSection(fmpData)}
+          ${renderFmpSection(fmpData, s)}
         </div>`;
     }
   } catch(e) {
@@ -1294,24 +1294,49 @@ function fmpSignalLabel(s) {
   return {STRONG_BUY:'STRONG BUY',BUY:'BUY',NEUTRAL:'NEUTRAL',SELL:'SELL',STRONG_SELL:'STRONG SELL'}[s]||'NEUTRAL';
 }
 
-function renderFmpSection(fmp) {
-  if(!fmp) return '<div class="signal-section"><div class="signal-loading">Signal Scan indisponível</div></div>';
-  const sc=fmpSignalClass(fmp.signal), sl=fmpSignalLabel(fmp.signal);
-  const c=fmp.composite, barPct=Math.abs(c)/30*50, barColor=c>=0?'#00e676':'#ff1744';
-  const barLeft=c>=0?'50%':`${50-barPct}%`;
+function renderFmpSection(fmp, s) {
+  const m = (s && s.markov) || {};
+  const probAdj = s ? (() => {
+    const p = calcProb(s.fase, s.slj, s.score_total, s.ms_score || 0, m.prob_bull_3d || 50);
+    return p.total;
+  })() : 50;
+  const bull3d = m.prob_bull_3d || 50;
+  const mscore = (s && s.ms_score) || 0;
+
+  let combinedSignal, combinedClass, combinedColor;
+  if (probAdj >= 65 && bull3d > 55) {
+    combinedSignal = 'STRONG BUY'; combinedClass = 'sig-strong-buy'; combinedColor = '#3fb950';
+  } else if (probAdj >= 50 && bull3d > 45) {
+    combinedSignal = 'BUY'; combinedClass = 'sig-buy'; combinedColor = '#56d364';
+  } else if (probAdj < 30 && bull3d < 35) {
+    combinedSignal = 'STRONG SELL'; combinedClass = 'sig-strong-sell'; combinedColor = '#f85149';
+  } else if (probAdj < 40 && bull3d < 42) {
+    combinedSignal = 'SELL'; combinedClass = 'sig-sell'; combinedColor = '#ff6b6b';
+  } else {
+    combinedSignal = 'NEUTRAL'; combinedClass = 'sig-neutral'; combinedColor = '#f0a500';
+  }
+
+  const barColor = probAdj >= 65 ? '#3fb950' : probAdj >= 50 ? '#f0a500' : '#f85149';
+  const trendBull = !fmp || (fmp.trend||0) >= 0;
+  const momBull   = !fmp || (fmp.momentum||0) >= 0;
+  const volBull   = !fmp || (fmp.volume||0) >= 0;
+
   return `<div class="signal-section">
-    <div class="signal-section-title">⬡ Signal Scan — Trend · Momentum · Volume</div>
+    <div class="signal-section-title">⬡ Signal Scan — Análise Combinada</div>
     <div class="signal-grid">
-      <div><div class="signal-lbl">TREND</div>${fmpDots(fmp.trend,5,(fmp.trend||0)>=0)}</div>
-      <div><div class="signal-lbl">MOMENTUM</div>${fmpDots(fmp.momentum,6,(fmp.momentum||0)>=0)}</div>
-      <div><div class="signal-lbl">VOLUME STR</div>${fmpDots(fmp.volume,5,(fmp.volume||0)>=0)}</div>
+      <div><div class="signal-lbl">TREND</div>${fmp ? fmpDots(fmp.trend,5,trendBull) : '<span style="color:var(--text3)">—</span>'}</div>
+      <div><div class="signal-lbl">MOMENTUM</div>${fmp ? fmpDots(fmp.momentum,6,momBull) : '<span style="color:var(--text3)">—</span>'}</div>
+      <div><div class="signal-lbl">VOLUME STR</div>${fmp ? fmpDots(fmp.volume,5,volBull) : '<span style="color:var(--text3)">—</span>'}</div>
     </div>
-    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-      <span class="signal-badge ${sc}">${sl}</span>
-      <div class="signal-composite" style="flex:1;min-width:120px;">
-        <div class="signal-bar-wrap"><div class="signal-bar-fill" style="left:${barLeft};width:${barPct}%;background:${barColor}"></div></div>
-        <span style="font-size:10px;color:${barColor};min-width:28px;">${c>=0?'+':''}${c}</span>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px;">
+      <span class="signal-badge ${combinedClass}">${combinedSignal}</span>
+      <div style="font-size:9px;color:var(--text3)">Prob.Ajust: <strong style="color:${barColor}">${probAdj}%</strong> · Bull3d: <strong style="color:${bull3d>50?'#3fb950':'#f85149'}">${bull3d}%</strong> · Minervini: <strong style="color:var(--text)">${mscore}/8</strong></div>
+    </div>
+    <div class="signal-composite">
+      <div class="signal-bar-wrap" style="flex:1;">
+        <div class="signal-bar-fill" style="width:${probAdj}%;background:${barColor}"></div>
       </div>
+      <span style="font-size:10px;color:${barColor};min-width:32px;">${probAdj}%</span>
     </div>
   </div>`;
 }
