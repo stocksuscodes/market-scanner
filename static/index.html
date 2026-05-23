@@ -1153,6 +1153,62 @@ Dá uma leitura do estado do mercado, o que os sectores líderes sugerem, e uma 
   }
 }
 
+function calcProb(fase, slj, score_total, ms_score, prob_bull_3d) {
+  const baseMap = {
+    'Spring_LONG':70,'Spring_AGUARDAR':45,'Spring_SHORT':20,
+    'Acumulação_LONG':61,'Acumulação_AGUARDAR':38,'Acumulação_SHORT':15,
+    'Markup_LONG':54,'Markup_AGUARDAR':35,'Markup_SHORT':25,
+    'Distribuição_SHORT':58,'Distribuição_AGUARDAR':32,'Distribuição_LONG':20,
+    'Markdown_SHORT':63,'Markdown_LONG':15,'Markdown_AGUARDAR':28,
+    'Test_LONG':47,'Test_AGUARDAR':35,'Test_SHORT':40,
+  };
+  const base = baseMap[`${fase}_${slj}`] || 35;
+  const adjScore  = score_total >= 12 ? 10 : score_total >= 7 ? 5 : score_total >= 4 ? 0 : -10;
+  const adjMini   = ms_score >= 7 ? 8 : ms_score >= 5 ? 4 : ms_score >= 3 ? 0 : -5;
+  const adjMarkov = prob_bull_3d > 60 ? 5 : prob_bull_3d < 40 ? -5 : 0;
+  const total = Math.min(95, Math.max(5, base + adjScore + adjMini + adjMarkov));
+  return { base, adjScore, adjMini, adjMarkov, total };
+}
+
+function probColor(pct) {
+  return pct >= 65 ? '#3fb950' : pct >= 50 ? '#f0a500' : '#f85149';
+}
+
+function renderProbPanel(s) {
+  if (!s || !s.fase || !s.slj) return '';
+  const m = s.markov || {};
+  const p = calcProb(s.fase, s.slj, s.score_total, s.ms_score || 0, m.prob_bull_3d || 50);
+  const rows = [
+    { label: 'Base Wyckoff + SLJ', hist: p.base, adj: '—', adjVal: p.base },
+    { label: 'Ajuste Score SLJ',   hist: null,   adj: (p.adjScore >= 0 ? '+' : '') + p.adjScore + '%', adjVal: p.base + p.adjScore },
+    { label: 'Ajuste Minervini',   hist: null,   adj: (p.adjMini  >= 0 ? '+' : '') + p.adjMini  + '%', adjVal: p.base + p.adjScore + p.adjMini },
+    { label: 'Ajuste Markov',      hist: null,   adj: (p.adjMarkov>= 0 ? '+' : '') + p.adjMarkov+ '%', adjVal: p.total },
+  ];
+  let rowsHtml = rows.map((row, i) => {
+    const histBar = row.hist ? `<div class="prob-bar-wrap"><div class="prob-bar" style="width:${row.hist}%;background:${probColor(row.hist)}"></div></div>` : '';
+    const adjBar  = i > 0 ? `<div class="prob-bar-wrap"><div class="prob-bar" style="width:${row.adjVal}%;background:${probColor(row.adjVal)}"></div></div>` : '';
+    const adjColor = row.adj.startsWith('-') ? '#f85149' : '#56d364';
+    return `<tr>
+      <td style="color:var(--text3)">${row.label}</td>
+      <td>${row.hist !== null ? `<strong style="color:${probColor(row.hist)}">${row.hist}%</strong>${histBar}` : '<span style="color:var(--text3)">—</span>'}</td>
+      <td>${i === 0 ? `<strong style="color:${probColor(p.base)}">${p.base}%</strong>` : `<span style="color:${adjColor}">${row.adj}</span>${adjBar}`}</td>
+    </tr>`;
+  }).join('');
+  const finalColor = probColor(p.total);
+  const finalLabel = p.total >= 65 ? 'Alta probabilidade' : p.total >= 50 ? 'Probabilidade moderada' : 'Baixa probabilidade';
+  return `<div class="prob-panel">
+    <div class="prob-title">◉ Probabilidade de Sucesso</div>
+    <table class="prob-table"><thead><tr><th>Componente</th><th>Histórica</th><th>Ajustada</th></tr></thead>
+    <tbody>${rowsHtml}
+      <tr class="prob-total-row"><td>TOTAL</td><td><strong style="color:${probColor(p.base)}">${p.base}%</strong></td><td><strong style="color:${finalColor}">${p.total}%</strong></td></tr>
+    </tbody></table>
+    <div class="prob-final">
+      <div><div class="prob-final-num" style="color:${finalColor}">${p.total}%</div><div class="prob-final-lbl">${finalLabel}</div></div>
+      <div style="flex:1"><div class="prob-bar-wrap" style="height:8px"><div class="prob-bar" style="width:${p.total}%;background:${finalColor}"></div></div></div>
+    </div>
+  </div>`;
+}
+
 function renderMinerviniSection(s) {
   if (!s || s.ms_score === undefined) return '';
   const score = s.ms_score || 0;
