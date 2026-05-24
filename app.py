@@ -865,9 +865,9 @@ def analisar_ativo(ticker, etf, sector_nome, p_min, p_max, adx_min, rsi_max):
     fase = fase_wyckoff(preco, sma200, ema21, rsi, adx)
     pullback = preco <= ema21 * 1.015
     acima    = preco > sma200
-    if fase in ("Acumulação", "Spring") and pullback and acima and 30 < rsi < rsi_max and adx > adx_min:
+    if fase in ("Acumulação", "Spring") and acima and 30 < rsi < rsi_max and adx > adx_min:
         slj = "LONG"
-    elif fase == "Markup" and acima and rsi < 70 and adx > adx_min:
+    elif fase == "Markup" and acima and rsi < 72 and adx > adx_min:
         slj = "LONG"
     elif fase in ("Distribuição", "Markdown"):
         slj = "SHORT"
@@ -1325,9 +1325,9 @@ def api_lookup():
     pullback = preco <= ema21 * 1.015
     acima    = preco > sma200
 
-    if fase in ("Acumulação", "Spring") and pullback and acima and 30 < rsi < 75 and adx > 10:
+    if fase in ("Acumulação", "Spring") and acima and 30 < rsi < 75 and adx > 10:
         slj = "LONG"
-    elif fase == "Markup" and acima and rsi < 70 and adx > 10:
+    elif fase == "Markup" and acima and rsi < 72 and adx > 10:
         slj = "LONG"
     elif fase in ("Distribuição", "Markdown"):
         slj = "SHORT"
