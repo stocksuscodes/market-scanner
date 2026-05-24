@@ -993,13 +993,7 @@ async function lookupAnalyzeAI(ticker) {
 **LEITURA COMBINADA**
 [2-3 linhas interpretando os indicadores abaixo de forma integrada]
 
-**ESTRATÉGIA**
-- Acção: [COMPRAR / AGUARDAR / EVITAR]
-- Entrada: $[preço ideal de entrada baseado na técnica]
-- Stop: $${s.stop} ([justificação em 3 palavras])
-- Alvo 1: $${s.alvo} ([justificação em 3 palavras])
-- Alvo 2: $[segundo alvo mais ambicioso baseado no ATR]
-- R/R: ${s.rr}:1
+${s.slj === 'SHORT' ? '**ESTRATÉGIA SHORT**\n- Acção: VENDER / EVITAR LONG\n- Entrada Short: $[pullback para resistência ou preço actual]\n- Stop: $[máximo recente × 1.02]\n- Alvo 1: $[suporte próximo — ATR×3 abaixo]\n- Alvo 2: $[extensão baixista — ATR×5]\n- R/R: [calcular direcção short]' : '**ESTRATÉGIA LONG**\n- Acção: [COMPRAR / AGUARDAR / EVITAR]\n- Entrada: $[preço ideal de entrada baseado na técnica]\n- Stop: $' + s.stop + ' ([justificação em 3 palavras])\n- Alvo 1: $' + s.alvo + ' ([justificação em 3 palavras])\n- Alvo 2: $[segundo alvo mais ambicioso baseado no ATR]\n- R/R: ' + s.rr + ':1'}
 
 Dados:
 Ticker: ${s.ticker} | Sector: ${s.sector} | Preço actual: $${s.price}
@@ -1384,7 +1378,21 @@ function renderFmpSection(fmp, s) {
   const mscore = (s && s.ms_score) || 0;
 
   let combinedSignal, combinedClass, combinedColor;
-  if (probAdj >= 65 && bull3d > 55) {
+  // Filtro estrutural: SLJ SHORT ou fase Wyckoff baixista bloqueiam BUY
+  const isSljShort = s && s.slj === 'SHORT';
+  const isBearishPhase = s && (s.fase === 'Distribuição' || s.fase === 'Markdown');
+  const structuralBear = isSljShort || isBearishPhase;
+
+  if (structuralBear) {
+    // Em SHORT ou Distribuição/Markdown: só pode ser SELL, STRONG SELL ou NEUTRAL
+    if (probAdj < 30 && bull3d < 35) {
+      combinedSignal = 'STRONG SELL'; combinedClass = 'sig-strong-sell'; combinedColor = '#f85149';
+    } else if (probAdj < 45 || bull3d < 45) {
+      combinedSignal = 'SELL'; combinedClass = 'sig-sell'; combinedColor = '#ff6b6b';
+    } else {
+      combinedSignal = 'NEUTRAL'; combinedClass = 'sig-neutral'; combinedColor = '#f0a500';
+    }
+  } else if (probAdj >= 65 && bull3d > 55) {
     combinedSignal = 'STRONG BUY'; combinedClass = 'sig-strong-buy'; combinedColor = '#3fb950';
   } else if (probAdj >= 50 && bull3d > 45) {
     combinedSignal = 'BUY'; combinedClass = 'sig-buy'; combinedColor = '#56d364';
