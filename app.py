@@ -413,6 +413,176 @@ def compute_adx(df, period=14):
     dx       = 100 * abs(plus_di - minus_di) / (plus_di + minus_di).replace(0, np.nan)
     return dx.rolling(period).mean()
 
+
+# ─────────────────────────────────────────────
+#  RELATIVE STRENGTH vs SPY (RS Score 0-100)
+# ─────────────────────────────────────────────
+_spy_cache = {"df": None, "ts": None}
+
+def obter_spy():
+    """Obtém dados do SPY com cache 1h."""
+    import time as _time
+    now = _time.time()
+    if _spy_cache["df"] is not None and _spy_cache["ts"] and now - _spy_cache["ts"] < 3600:
+        return _spy_cache["df"]
+    df = obter_dados_alpaca("SPY", 90)
+    if len(df) > 10:
+        _spy_cache["df"] = df
+        _spy_cache["ts"] = now
+    return df
+
+def calc_rs_vs_spy(df_stock):
+    """
+    Calcula Relative Strength vs SPY nos últimos 63 dias (≈ 1 trimestre).
+    Devolve rs_score 0-100 e rs_pct (diferença percentual).
+    """
+    try:
+        df_spy = obter_spy()
+        if len(df_spy) < 20 or len(df_stock) < 20:
+            return 50, 0.0
+        # Alinhar pelo índice de datas
+        common = df_stock.index.intersection(df_spy.index)
+        if len(common) < 10:
+            return 50, 0.0
+        stock_r = (df_stock.loc[common, "Close"].iloc[-1] / df_stock.loc[common, "Close"].iloc[max(-63,-len(common))] - 1) * 100
+        spy_r   = (df_spy.loc[common, "Close"].iloc[-1]   / df_spy.loc[common, "Close"].iloc[max(-63,-len(common))]   - 1) * 100
+        rs_pct  = round(stock_r - spy_r, 2)
+        # Normalizar para 0-100 (diferença de -30% a +30% mapeada para 0-100)
+        rs_score = int(min(100, max(0, (rs_pct + 30) / 60 * 100)))
+        return rs_score, rs_pct
+    except:
+        return 50, 0.0
+
+
+# ─────────────────────────────────────────────
+#  ATR COMPRESSION — detecta compressão antes do breakout
+# ─────────────────────────────────────────────
+def calc_atr_compression(df):
+    """
+    Compara ATR actual (5d) com ATR médio (20d).
+    Retorna compressao=True se ATR actual < 70% do ATR 20d.
+    """
+    if len(df) < 25:
+        return False, 1.0
+    atr_now  = float((df["High"] - df["Low"]).iloc[-5:].mean())
+    atr_20d  = float((df["High"] - df["Low"]).iloc[-25:-5].mean())
+    if atr_20d <= 0:
+        return False, 1.0
+    ratio = round(atr_now / atr_20d, 2)
+    compressao = ratio < 0.70
+    return compressao, ratio
+
+
+# ─────────────────────────────────────────────
+#  MARKET FILTER — SPY + VIX
+# ─────────────────────────────────────────────
+_market_filter_cache = {"data": None, "ts": None}
+
+def get_market_filter():
+    """
+    Camada 1 do scanner: verifica se o mercado permite swings.
+    SPY acima SMA50 = mercado bullish.
+    Usa cache de 1h para não chamar Alpaca em cada request.
+    """
+    import time as _time
+    now = _time.time()
+    if _market_filter_cache["data"] and _market_filter_cache["ts"] and now - _market_filter_cache["ts"] < 3600:
+        return _market_filter_cache["data"]
+    try:
+        df_spy = obter_spy()
+        if len(df_spy) < 55:
+            result = {"bullish": True, "spy_vs_sma50": 0.0, "regime": "Desconhecido"}
+        else:
+            sma50 = float(compute_sma(df_spy["Close"], 50).iloc[-1])
+            preco = float(df_spy["Close"].iloc[-1])
+            pct   = round((preco / sma50 - 1) * 100, 2)
+            result = {
+                "bullish": preco > sma50,
+                "spy_vs_sma50": pct,
+                "regime": "Bull" if preco > sma50 else "Bear",
+                "spy_price": round(preco, 2),
+                "spy_sma50": round(sma50, 2),
+            }
+        _market_filter_cache["data"] = result
+        _market_filter_cache["ts"]   = now
+        return result
+    except:
+        return {"bullish": True, "spy_vs_sma50": 0.0, "regime": "Desconhecido"}
+
+
+# ─────────────────────────────────────────────
+#  FAKE BREAKOUT FILTER
+# ─────────────────────────────────────────────
+def is_fake_breakout(df, slj):
+    """
+    Detecta breakouts falsos:
+    - Breakout sem volume (vol < 1.2x média)
+    - Preço demasiado longe da EMA20 (>20% extensão)
+    - Pump de 1 dia sem seguimento (close < open do dia do breakout)
+    Retorna fake=True se for breakout falso.
+    """
+    if len(df) < 22:
+        return False
+    last    = df.iloc[-1]
+    prev    = df.iloc[-2]
+    vol_ma  = float(df["Volume"].rolling(20).mean().iloc[-1])
+    vol_now = float(last["Volume"])
+    ema20   = float(compute_ema(df["Close"], 20).iloc[-1])
+    preco   = float(last["Close"])
+
+    # Volume insuficiente no breakout
+    if vol_now < vol_ma * 1.2:
+        return True
+    # Extensão excessiva da EMA20 (pump emocional)
+    extensao = abs(preco / ema20 - 1) * 100
+    if extensao > 20:
+        return True
+    # Vela de reversão: abriu alto, fechou baixo (bearish engulf no breakout LONG)
+    if slj == "LONG" and last["Close"] < last["Open"] and last["Close"] < prev["Close"]:
+        return True
+    return False
+
+
+# ─────────────────────────────────────────────
+#  SCORE 0-100 PROFISSIONAL
+# ─────────────────────────────────────────────
+def calc_score_100(score_slj, rs_score, atr_compressao, market_bullish,
+                   vol_ratio, adx, fase, slj, ms_score):
+    """
+    Score ponderado 0-100 estilo hedge fund.
+    RS vs SPY:      20%
+    Wyckoff/SLJ:    20%
+    Volume:         15%
+    ATR Compressão: 15%
+    Tendência(ADX): 15%
+    Minervini:      10%
+    Market Filter:   5%
+    """
+    # RS (0-20)
+    rs_pts = rs_score * 0.20
+
+    # SLJ Score (0-20) — normalizar de 0-15 para 0-20
+    slj_pts = (score_slj / 15) * 20
+
+    # Volume (0-15)
+    vol_pts = min(15, (min(vol_ratio, 3) / 3) * 15)
+
+    # ATR Compressão (0-15) — compressão = setup mais limpo
+    comp_pts = 15 if atr_compressao else 0
+
+    # Tendência ADX (0-15)
+    adx_pts = min(15, (min(adx, 50) / 50) * 15)
+
+    # Minervini (0-10) — normalizar de 0-8 para 0-10
+    min_pts = (ms_score / 8) * 10
+
+    # Market Filter (0-5)
+    mkt_pts = 5 if market_bullish else 0
+
+    total = rs_pts + slj_pts + vol_pts + comp_pts + adx_pts + min_pts + mkt_pts
+    return round(min(100, total))
+
+
 def compute_indicators(df):
     df = df.copy()
     c = df["Close"]
@@ -697,17 +867,43 @@ def analisar_ativo(ticker, etf, sector_nome, p_min, p_max, adx_min, rsi_max):
     acima    = preco > sma200
     if fase in ("Acumulação", "Spring") and pullback and acima and 30 < rsi < rsi_max and adx > adx_min:
         slj = "LONG"
-    elif fase == "Distribuição" and rsi > 58:
+    elif fase == "Markup" and acima and rsi < 70 and adx > adx_min:
+        slj = "LONG"
+    elif fase in ("Distribuição", "Markdown") and rsi > 55:
         slj = "SHORT"
     else:
         slj = "AGUARDAR"
-    stop = round(preco - 2 * atr, 2)
-    alvo = round(preco + 4 * atr, 2)
-    rr   = round((alvo - preco) / (preco - stop), 1) if preco > stop else 0
+    # Stop/Alvo correctos por direcção
+    if slj == "SHORT":
+        stop = round(preco + 2 * atr, 2)   # stop ACIMA para short
+        alvo = round(preco - 4 * atr, 2)   # alvo ABAIXO para short
+        rr   = round((preco - alvo) / (stop - preco), 1) if stop > preco else 0
+    else:
+        stop = round(preco - 2 * atr, 2)
+        alvo = round(preco + 4 * atr, 2)
+        rr   = round((alvo - preco) / (preco - stop), 1) if preco > stop else 0
+
     vol20 = float(df["Volume"].rolling(20).mean().iloc[-1])
     vol_r = round(float(df["Volume"].iloc[-1]) / vol20, 2) if vol20 > 0 else 1.0
     prev  = df.iloc[-2]
     chg   = round((preco / float(prev["Close"]) - 1) * 100, 2)
+
+    # RS vs SPY
+    rs_score, rs_pct = calc_rs_vs_spy(df)
+
+    # ATR Compression
+    atr_comp, atr_ratio = calc_atr_compression(df)
+
+    # Fake breakout check
+    fake_bo = is_fake_breakout(df, slj)
+
+    # Market Filter
+    mkt = get_market_filter()
+
+    # Score 0-100
+    score_100 = calc_score_100(total, rs_score, atr_comp, mkt["bullish"],
+                                vol_r, adx, fase, slj, 0)
+
     return {
         "ticker": ticker, "etf": etf, "sector": sector_nome,
         "price": round(preco, 2), "chg_pct": chg,
@@ -721,6 +917,12 @@ def analisar_ativo(ticker, etf, sector_nome, p_min, p_max, adx_min, rsi_max):
         "notes_simons": sn, "notes_livermore": ln, "notes_ptj": pn,
         "notes_wyckoff": wn, "notes_markov": mn,
         "signal_label": "FORTE" if total >= 12 else "MÉDIO" if total >= 7 else "FRACO",
+        "rs_score": rs_score, "rs_pct": rs_pct,
+        "atr_compression": atr_comp, "atr_ratio": atr_ratio,
+        "fake_breakout": fake_bo,
+        "market_bullish": mkt.get("bullish", True),
+        "market_regime": mkt.get("regime", "—"),
+        "score_100": score_100,
     }
 
 
@@ -1067,6 +1269,12 @@ def score_minervini(df):
     return score, notes, vcp_detected
 
 
+
+@app.route("/api/market-filter", methods=["GET"])
+def api_market_filter():
+    """Camada 1 — Market Filter: SPY vs SMA50."""
+    return jsonify(get_market_filter())
+
 @app.route("/api/lookup", methods=["POST"])
 def api_lookup():
     """Avalia um ticker individual sem filtros de preço, volume ou histórico mínimo."""
@@ -1115,14 +1323,23 @@ def api_lookup():
 
     if fase in ("Acumulação", "Spring") and pullback and acima and 30 < rsi < 75 and adx > 10:
         slj = "LONG"
-    elif fase == "Distribuição" and rsi > 58:
+    elif fase == "Markup" and acima and rsi < 70 and adx > 10:
+        slj = "LONG"
+    elif fase in ("Distribuição", "Markdown") and rsi > 55:
         slj = "SHORT"
     else:
         slj = "AGUARDAR"
 
-    stop  = round(preco - 2 * atr, 2)
-    alvo  = round(preco + 4 * atr, 2)
-    rr    = round((alvo - preco) / (preco - stop), 1) if preco > stop else 0
+    # Stop/Alvo correctos por direcção
+    if slj == "SHORT":
+        stop = round(preco + 2 * atr, 2)
+        alvo = round(preco - 4 * atr, 2)
+        rr   = round((preco - alvo) / (stop - preco), 1) if stop > preco else 0
+    else:
+        stop  = round(preco - 2 * atr, 2)
+        alvo  = round(preco + 4 * atr, 2)
+        rr    = round((alvo - preco) / (preco - stop), 1) if preco > stop else 0
+
     vol20 = float(df["Volume"].rolling(20).mean().iloc[-1]) if len(df) >= 20 else float(df["Volume"].mean())
     vol_r = round(float(df["Volume"].iloc[-1]) / vol20, 2) if vol20 > 0 else 1.0
     prev  = df.iloc[-2] if len(df) >= 2 else df.iloc[-1]
@@ -1131,6 +1348,14 @@ def api_lookup():
     # Minervini Trend Template
     ms_score, ms_notes, ms_vcp = score_minervini(df)
     ms_label = "FORTE" if ms_score >= 6 else "MÉDIO" if ms_score >= 4 else "FRACO"
+
+    # RS vs SPY, ATR Compression, Fake Breakout, Market Filter
+    rs_score_val, rs_pct = calc_rs_vs_spy(df)
+    atr_comp, atr_ratio  = calc_atr_compression(df)
+    fake_bo              = is_fake_breakout(df, slj)
+    mkt                  = get_market_filter()
+    score_100            = calc_score_100(total, rs_score_val, atr_comp, mkt["bullish"],
+                                          vol_r, adx, fase, slj, ms_score)
 
     # Markov detalhado
     markov_data = markov_detalhado(df)
@@ -1181,6 +1406,13 @@ def api_lookup():
         "sig_trend": sig_trend, "sig_momentum": sig_momentum,
         "sig_volume": sig_volume, "sig_composite": sig_composite,
         "sig_signal": sig_signal,
+        "rs_score": rs_score_val, "rs_pct": rs_pct,
+        "atr_compression": atr_comp, "atr_ratio": atr_ratio,
+        "fake_breakout": fake_bo,
+        "market_bullish": mkt.get("bullish", True),
+        "market_regime": mkt.get("regime", "—"),
+        "spy_vs_sma50": mkt.get("spy_vs_sma50", 0.0),
+        "score_100": score_100,
     })
 
 
