@@ -869,15 +869,19 @@ def analisar_ativo(ticker, etf, sector_nome, p_min, p_max, adx_min, rsi_max):
         slj = "LONG"
     elif fase == "Markup" and acima and rsi < 70 and adx > adx_min:
         slj = "LONG"
-    elif fase in ("Distribuição", "Markdown") and rsi > 55:
+    elif fase in ("Distribuição", "Markdown"):
         slj = "SHORT"
     else:
         slj = "AGUARDAR"
     # Stop/Alvo correctos por direcção
     if slj == "SHORT":
-        stop = round(preco + 2 * atr, 2)   # stop ACIMA para short
-        alvo = round(preco - 4 * atr, 2)   # alvo ABAIXO para short
+        stop = round(preco + 2 * atr, 2)
+        alvo = round(preco - 4 * atr, 2)
         rr   = round((preco - alvo) / (stop - preco), 1) if stop > preco else 0
+    elif slj == "AGUARDAR":
+        stop = round(preco - 1 * atr, 2)   # neutro — apenas referência
+        alvo = round(preco + 2 * atr, 2)   # neutro — apenas referência
+        rr   = 2.0
     else:
         stop = round(preco - 2 * atr, 2)
         alvo = round(preco + 4 * atr, 2)
@@ -1325,7 +1329,7 @@ def api_lookup():
         slj = "LONG"
     elif fase == "Markup" and acima and rsi < 70 and adx > 10:
         slj = "LONG"
-    elif fase in ("Distribuição", "Markdown") and rsi > 55:
+    elif fase in ("Distribuição", "Markdown"):
         slj = "SHORT"
     else:
         slj = "AGUARDAR"
@@ -1335,6 +1339,10 @@ def api_lookup():
         stop = round(preco + 2 * atr, 2)
         alvo = round(preco - 4 * atr, 2)
         rr   = round((preco - alvo) / (stop - preco), 1) if stop > preco else 0
+    elif slj == "AGUARDAR":
+        stop = round(preco - 1 * atr, 2)
+        alvo = round(preco + 2 * atr, 2)
+        rr   = 2.0
     else:
         stop  = round(preco - 2 * atr, 2)
         alvo  = round(preco + 4 * atr, 2)
