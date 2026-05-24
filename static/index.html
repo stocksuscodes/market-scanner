@@ -957,6 +957,14 @@ async function lookupTicker() {
             <span style="font-size:9px;padding:2px 7px;border-radius:3px;background:#fee2e2;color:#b91c1c;font-weight:600;">Markov ${s.score_markov}/3</span>
           </div>
 
+          <div class="lookup-scores" style="margin-top:6px;gap:6px;">
+            ${s.score_100 !== undefined ? `<span style="font-size:10px;padding:3px 9px;border-radius:4px;background:${s.score_100>=70?'#052e16':s.score_100>=50?'#1c1917':'#1c1010'};color:${s.score_100>=70?'#4ade80':s.score_100>=50?'#f59e0b':'#f87171'};font-weight:700;border:1px solid ${s.score_100>=70?'#166534':s.score_100>=50?'#78350f':'#7f1d1d'}">⬡ Score ${s.score_100}/100</span>` : ''}
+            ${s.rs_score !== undefined ? `<span style="font-size:9px;padding:2px 7px;border-radius:3px;background:${s.rs_pct>=0?'#052e16':'#1c1010'};color:${s.rs_pct>=0?'#4ade80':'#f87171'};font-weight:600;">RS vs SPY ${s.rs_pct>=0?'+':''}${s.rs_pct}%</span>` : ''}
+            ${s.atr_compression ? `<span style="font-size:9px;padding:2px 7px;border-radius:3px;background:#1e1b4b;color:#a5b4fc;font-weight:600;">⊡ ATR Compressão</span>` : ''}
+            ${s.fake_breakout ? `<span style="font-size:9px;padding:2px 7px;border-radius:3px;background:#7f1d1d;color:#fca5a5;font-weight:600;">⚠ Fake Breakout</span>` : ''}
+            ${s.market_regime ? `<span style="font-size:9px;padding:2px 7px;border-radius:3px;background:${s.market_bullish?'#052e16':'#1c1010'};color:${s.market_bullish?'#86efac':'#fca5a5'};font-weight:600;">SPY ${s.market_regime}</span>` : ''}
+          </div>
+
           ${allNotes.length ? `<div class="lookup-notes">${allNotes.map(n=>`<div>${n}</div>`).join('')}</div>` : ''}
 
           <div class="lookup-actions">
