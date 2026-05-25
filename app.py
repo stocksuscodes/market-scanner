@@ -208,7 +208,7 @@ def _run_full_scan_background():
             time.sleep(0.15)
 
         # Step 3: Sort by Score SLJ descending within each top sector
-        sinais.sort(key=lambda x: (-x["score_total"], -x["rr"]))
+        sinais.sort(key=lambda x: (-(x.get("score_100") or 0), -(x.get("score_total") or 0), -x["rr"]))
         _cache["sinais"]    = sinais
         _cache["total"]     = len(all_tickers)
         _cache["timestamp"] = datetime.utcnow()
@@ -1488,7 +1488,7 @@ def api_scan_russell():
             sinais.append(resultado)
         time.sleep(0.15)
 
-    sinais.sort(key=lambda x: (-x["score_total"], -x["rr"]))
+    sinais.sort(key=lambda x: (-(x.get("score_100") or 0), -(x.get("score_total") or 0), -x["rr"]))
     return jsonify({"sinais": sinais, "total": len(tickers_filtrados),
                    "pre_filter": len(RUSSELL_3000_TICKERS),
                    "source": "russell3000"})
@@ -1514,7 +1514,7 @@ def _run_russell_background():
             if resultado:
                 sinais.append(resultado)
             time.sleep(0.3)
-        sinais.sort(key=lambda x: (-x["score_total"], -x["rr"]))
+        sinais.sort(key=lambda x: (-(x.get("score_100") or 0), -(x.get("score_total") or 0), -x["rr"]))
         _cache["russell"]["sinais"]    = sinais
         _cache["russell"]["total"]     = len(tickers_filtrados)
         _cache["russell"]["timestamp"] = datetime.utcnow()
