@@ -286,9 +286,11 @@
   }
 
 @media print {
-  .run-btn, .btn-primary, .btn-secondary, .detail-btns, .rescan-btn, .footer button { display: none !important; }
+  .run-btn, .btn-primary, .btn-secondary, #heatmap-section button,
+  .detail-btns, .rescan-btn, .footer button { display: none !important; }
   body { background: white !important; color: black !important; }
   .sig-row { break-inside: avoid; }
+  .scanner-wrap { box-shadow: none; }
 }
 </style>
 </head>
@@ -331,6 +333,7 @@
       <div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">◈ Heatmap Sectorial — Momentum 10d <button onclick="document.getElementById('heatmap-section').style.display='none'" style="background:none;border:none;color:#555;cursor:pointer;font-size:10px;">✕</button></div>
       <div id="heatmap-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:5px;"></div>
     </div>
+
         <div class="params-row" style="margin-top:14px">
       <div class="param-group"><label>Preço mín $</label><input type="number" id="p-min" value="5" min="1"></div>
       <div class="param-group"><label>Preço máx $</label><input type="number" id="p-max" value="50" min="1"></div>
@@ -346,6 +349,9 @@
         style="flex:1;min-width:200px;">
         ⟳ Scan Russell 3000
       </button>
+      <button onclick="exportCSV()" style="padding:8px 14px;font-size:11px;background:#1a1a1a;color:#888;border:1px solid #333;border-radius:6px;cursor:pointer;">⬇ CSV</button>
+      <button onclick="exportPDF()" style="padding:8px 14px;font-size:11px;background:#1a1a1a;color:#888;border:1px solid #333;border-radius:6px;cursor:pointer;">⬇ PDF</button>
+      <button onclick="toggleWatchlist()" style="padding:8px 14px;font-size:11px;background:#1a1a1a;color:#888;border:1px solid #333;border-radius:6px;cursor:pointer;">★ Watchlist</button>
     </div>
   </div>
 
@@ -806,6 +812,10 @@ function renderResults(signals) {
   openDetail = null;
   if (data.ranking_snapshot) renderHeatmap(data.ranking_snapshot);
   checkWatchlistAlerts(signals);
+  // Update RS ratings based on all rs_pct values
+  const allRs = signals.map(s => s.rs_pct||0).filter(v => v !== null);
+  signals.forEach(s => { const sorted = [...allRs].sort((a,b)=>a-b); const idx = sorted.findIndex(v => v >= (s.rs_pct||0)); s.rs_rating = idx < 0 ? 50 : Math.round(idx/sorted.length*98)+1; });
+  renderWatchlist();
 }
 
 function renderRows(sigs) {
@@ -837,8 +847,8 @@ function renderRows(sigs) {
         <div><div class="d-lbl">Risco $</div><div class="d-val red">$${(s.price - s.stop).toFixed(2)}</div></div>
         ${s.position_shares ? `<div><div class="d-lbl">Shares (1%)</div><div class="d-val green">${s.position_shares}</div></div>` : ''}
         ${s.expectancy !== undefined ? `<div><div class="d-lbl">Expectancy</div><div class="d-val ${s.expectancy>0?'green':'red'}">${s.expectancy}R</div></div>` : ''}
-        ${s.rs_rating ? `<div><div class="d-lbl">RS Rating</div><div class="d-val ${s.rs_rating>=80?'green':''}">${s.rs_rating}/99</div></div>` : ''}
-        ${s.vcp ? `<div><div class="d-lbl">VCP</div><div class="d-val" style="color:#a5b4fc">${s.vcp_contractions} contr. ${s.vcp_tightness}%</div></div>` : ''}
+        ${s.rs_rating ? `<div><div class="d-lbl">RS Rating</div><div class="d-val ${s.rs_rating>=80?'green':s.rs_rating>=50?'':'red'}">${s.rs_rating}/99</div></div>` : ''}
+        ${s.vcp ? `<div><div class="d-lbl">VCP</div><div class="d-val" style="color:#a5b4fc">${s.vcp_contractions} contr. · ${s.vcp_tightness}%</div></div>` : ''}
       </div>
       <div style="margin:6px 0 8px;"><div style="font-size:9px;color:#888;text-transform:uppercase;margin-bottom:4px;">Score SLJ — ${s.score_total!=null?s.score_total+'/15':'—'}</div><div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px;"><span style="font-size:9px;padding:2px 7px;border-radius:3px;background:#e0f2fe;color:#0369a1;font-weight:600;">S ${s.score_simons!=null?s.score_simons+'/3':'—'}</span><span style="font-size:9px;padding:2px 7px;border-radius:3px;background:#dcfce7;color:#15803d;font-weight:600;">L ${s.score_livermore!=null?s.score_livermore+'/3':'—'}</span><span style="font-size:9px;padding:2px 7px;border-radius:3px;background:#f3e8ff;color:#7e22ce;font-weight:600;">P ${s.score_ptj!=null?s.score_ptj+'/3':'—'}</span><span style="font-size:9px;padding:2px 7px;border-radius:3px;background:#fef9c3;color:#854d0e;font-weight:600;">W ${s.score_wyckoff!=null?s.score_wyckoff+'/3':'—'}</span><span style="font-size:9px;padding:2px 7px;border-radius:3px;background:#fee2e2;color:#b91c1c;font-weight:600;">M ${s.score_markov!=null?s.score_markov+'/3':'—'}</span></div>${((s.notes_simons||[]).concat(s.notes_livermore||[]).concat(s.notes_ptj||[]).concat(s.notes_wyckoff||[]).concat(s.notes_markov||[])).slice(0,5).map(n=>`<div style="font-size:10px;color:#666;margin-top:2px;">• ${n}</div>`).join('')}</div>
       <div class="detail-grid" style="display:none">
@@ -1492,53 +1502,118 @@ async function loadHistory() {
 
 
 
-function renderHeatmap(ranking) {
-  const section = document.getElementById('heatmap-section');
-  const grid    = document.getElementById('heatmap-grid');
-  if (!ranking || !ranking.length || !section) return;
-  section.style.display = 'block';
-  const max = Math.max(...ranking.map(r => Math.abs(r.mom10||r.perf||0))) || 1;
-  grid.innerHTML = ranking.map((r, i) => {
-    const pct  = r.mom10 || r.perf || 0;
-    const norm = pct / max;
-    const green = Math.max(0, Math.round(norm * 160));
-    const red   = Math.max(0, Math.round(-norm * 160));
-    const bg    = `rgb(${15+red},${15+green},15)`;
-    const border = i < 5 ? '1px solid #4ade80' : '1px solid #222';
-    const label = r.sector || r.nome || r.etf || '';
-    return `<div style="background:${bg};border:${border};border-radius:5px;padding:6px 5px;text-align:center;cursor:pointer;" onclick="filterBySector('${label}')">
-      <div style="font-size:9px;font-weight:700;color:#ddd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${label}">${label}</div>
-      <div style="font-size:11px;font-weight:800;color:${pct>=0?'#4ade80':'#f87171'};margin-top:2px">${pct>=0?'+':''}${(pct||0).toFixed(1)}%</div>
-      <div style="font-size:8px;color:#666">#${i+1}</div>
+// ── WATCHLIST ──
+let watchlist = JSON.parse(localStorage.getItem('scanner_watchlist') || '[]');
+function toggleWatchlist() {
+  const panel = document.getElementById('watchlist-panel');
+  if (!panel) return;
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  renderWatchlist();
+}
+function addToWatchlist(ticker) {
+  if (!watchlist.includes(ticker)) {
+    watchlist.push(ticker);
+    localStorage.setItem('scanner_watchlist', JSON.stringify(watchlist));
+    renderWatchlist();
+  }
+}
+function removeFromWatchlist(ticker) {
+  watchlist = watchlist.filter(t => t !== ticker);
+  localStorage.setItem('scanner_watchlist', JSON.stringify(watchlist));
+  renderWatchlist();
+}
+function renderWatchlist() {
+  const el = document.getElementById('watchlist-items');
+  if (!el) return;
+  if (!watchlist.length) { el.innerHTML = '<div style="color:#666;font-size:11px;">Watchlist vazia.</div>'; return; }
+  // Check if any watchlist ticker has a signal now
+  const signals = lastSignals || [];
+  el.innerHTML = watchlist.map(t => {
+    const sig = signals.find(s => s.ticker === t);
+    const badgeBg = sig.slj==='LONG'?'#052e16':sig.slj==='SHORT'?'#7f1d1d':'#1c1917';
+    const badgeClr = sig.slj==='LONG'?'#4ade80':sig.slj==='SHORT'?'#f87171':'#888';
+    const badge = sig ? '<span style="font-size:9px;padding:1px 5px;border-radius:3px;margin-left:6px;background:'+badgeBg+';color:'+badgeClr+'">'+sig.slj+'</span>' : '';
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0;border-bottom:1px solid #1e1e1e;font-size:11px;">
+      <span style="color:#ddd">${t}${badge}</span>
+      <button onclick="removeFromWatchlist('${t}')" style="background:none;border:none;color:#666;cursor:pointer;font-size:10px;">✕</button>
     </div>`;
   }).join('');
 }
+
+// ── EXPORT CSV ──
+function exportCSV() {
+  const sigs = lastSignals || [];
+  if (!sigs.length) return;
+  const header = ['Ticker','Sector','Preco','RSI','ADX','Fase','Sinal','RR','Stop','Alvo','ScoreSLJ','Score100','RS_SPY','VCP','DryUp'].join(',');
+  const rows = sigs.map(s => [
+    s.ticker, s.sector, s.price, s.rsi, s.adx, s.fase, s.slj, s.rr, s.stop, s.alvo,
+    s.score_total, s.score_100||'', s.rs_pct||'', s.vcp?'SIM':'NAO', s.volume_dryup?'SIM':'NAO'
+  ].join(','));
+  const csv = [header, ...rows].join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = `scan_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+}
+
+
+// ── HEATMAP SECTORIAL ──
+function renderHeatmap(ranking) {
+  const section = document.getElementById('heatmap-section');
+  const grid    = document.getElementById('heatmap-grid');
+  if (!ranking || !ranking.length) return;
+  section.style.display = 'block';
+  const max = Math.max(...ranking.map(r => Math.abs(r.mom10||0))) || 1;
+  grid.innerHTML = ranking.map((r, i) => {
+    const pct  = r.mom10 || 0;
+    const norm = pct / max; // -1 to 1
+    const green = Math.max(0, Math.round(norm * 180));
+    const red   = Math.max(0, Math.round(-norm * 180));
+    const bg    = `rgb(${10+red},${10+green},10)`;
+    const border = i < 5 ? '1px solid #4ade80' : '1px solid #222';
+    return `<div style="background:${bg};border:${border};border-radius:5px;padding:6px 5px;text-align:center;cursor:pointer;" onclick="filterBySector('${r.sector||''}')">
+      <div style="font-size:9px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.sector||r.etf}</div>
+      <div style="font-size:11px;font-weight:800;color:${pct>=0?'#4ade80':'#f87171'};margin-top:2px">${pct>=0?'+':''}${(pct||0).toFixed(1)}%</div>
+      <div style="font-size:8px;color:#888">#${i+1}</div>
+    </div>`;
+  }).join('');
+}
+
 function filterBySector(sector) {
-  if (!sector || !lastSignals) return;
-  const sigs = lastSignals.filter(s => (s.sector||'').includes(sector) || sector.includes(s.sector||''));
+  if (!sector) return;
+  const sigs = lastSignals.filter(s => s.sector === sector);
   renderRows(sigs.length ? sigs : lastSignals);
 }
+
+// ── WATCHLIST ALERTS ──
 function checkWatchlistAlerts(signals) {
   if (!watchlist || !watchlist.length) return;
   const prev = JSON.parse(localStorage.getItem('scanner_prev_signals') || '{}');
   let alerts = [];
   signals.forEach(s => {
-    if (watchlist.includes(s.ticker) && prev[s.ticker] && prev[s.ticker] !== s.slj)
-      alerts.push(`${s.ticker}: ${prev[s.ticker]} → ${s.slj}`);
+    const prevSig = prev[s.ticker];
+    if (watchlist.includes(s.ticker) && prevSig && prevSig !== s.slj) {
+      alerts.push(`${s.ticker}: ${prevSig} → ${s.slj}`);
+    }
     prev[s.ticker] = s.slj;
   });
   localStorage.setItem('scanner_prev_signals', JSON.stringify(prev));
   if (alerts.length) {
-    const d = document.createElement('div');
-    d.style.cssText = 'position:fixed;top:16px;right:16px;background:#1e3a1e;border:1px solid #4ade80;color:#4ade80;padding:10px 14px;border-radius:8px;font-size:11px;z-index:9999;max-width:260px;white-space:pre';
-    d.textContent = '⚡ Mudança de sinal:
-' + alerts.join('
-');
-    document.body.appendChild(d);
-    setTimeout(() => d.remove(), 6000);
+    const msg = '⚡ Mudança de sinal:\n' + alerts.join('\n');
+    const alertDiv = document.createElement('div');
+    alertDiv.style.cssText = 'position:fixed;top:16px;right:16px;background:#1e3a1e;border:1px solid #4ade80;color:#4ade80;padding:10px 14px;border-radius:8px;font-size:11px;z-index:9999;max-width:260px;';
+    alertDiv.textContent = msg;
+    document.body.appendChild(alertDiv);
+    setTimeout(() => alertDiv.remove(), 6000);
   }
 }
-function exportPDF() { window.print(); }
+
+// ── EXPORT PDF (print) ──
+function exportPDF() {
+  window.print();
+}
+
 
 </script>
 </body>
