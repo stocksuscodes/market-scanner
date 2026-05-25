@@ -323,7 +323,7 @@
     <div class="params-row" style="margin-top:14px">
       <div class="param-group"><label>Preço mín $</label><input type="number" id="p-min" value="5" min="1"></div>
       <div class="param-group"><label>Preço máx $</label><input type="number" id="p-max" value="50" min="1"></div>
-      <div class="param-group"><label>ADX mín</label><input type="number" id="adx-min" value="20" min="1"></div>
+      <div class="param-group"><label>ADX mín</label><input type="number" id="adx-min" value="10" min="1"></div>
       <div class="param-group"><label>RSI máx</label><input type="number" id="rsi-max" value="55" min="1"></div>
     </div>
     <div class="sel-info" id="sel-info"></div>
@@ -702,7 +702,7 @@ async function runScan() {
 
   const pMin   = parseFloat(document.getElementById('p-min').value)   || 5;
   const pMax   = parseFloat(document.getElementById('p-max').value)   || 50;
-  const adxMin = parseFloat(document.getElementById('adx-min').value) || 20;
+  const adxMin = parseFloat(document.getElementById('adx-min').value) || 10;
   const rsiMax = parseFloat(document.getElementById('rsi-max').value) || 55;
 
   const tickers = [];
@@ -1114,7 +1114,7 @@ async function runRussellScan() {
 
   const pMin   = parseFloat(document.getElementById('p-min').value)   || 5;
   const pMax   = parseFloat(document.getElementById('p-max').value)   || 500;
-  const adxMin = parseFloat(document.getElementById('adx-min').value) || 15;
+  const adxMin = parseFloat(document.getElementById('adx-min').value) || 10;
   const rsiMax = parseFloat(document.getElementById('rsi-max').value) || 75;
 
   // First call to start background scan
