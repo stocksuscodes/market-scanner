@@ -1397,7 +1397,7 @@ def api_cache_reset():
     _cache["sinais"]    = []
     _cache["timestamp"] = None
     _cache["running"]   = False
-    threading.Thread(target=refresh_cache, daemon=True).start()
+    threading.Thread(target=_run_full_scan_background, daemon=True).start()
     return jsonify({"status": "reset", "message": "Scan a relançar em background"})
 
 @app.route("/api/breadth", methods=["GET"])
@@ -1665,5 +1665,6 @@ if __name__ == "__main__":
         print("  [RAILWAY] A iniciar cache em background...")
         threading.Thread(target=_schedule_cache_refresh, daemon=True).start()
     app.run(debug=False, host="0.0.0.0", port=int(os.getenv("PORT", 5000)))
+
 
 
