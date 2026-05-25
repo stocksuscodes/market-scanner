@@ -633,6 +633,63 @@ def calc_score_100(score_slj, rs_score, atr_compressao, market_bullish,
     return round(min(100, total))
 
 
+
+def detect_vcp(df):
+    if len(df) < 60: return False, 0, 0.0
+    try:
+        windows = []
+        for i in range(3):
+            w = df.iloc[-(30-i*10):-(20-i*10)] if i < 2 else df.iloc[-10:]
+            rng = float((w["High"].max()-w["Low"].min())/w["Close"].mean()*100)
+            vol = float(w["Volume"].mean())
+            windows.append((rng, vol))
+        rc = all(windows[i][0]>windows[i+1][0] for i in range(2))
+        vc = all(windows[i][1]>windows[i+1][1] for i in range(2))
+        if rc and vc: return True, len(windows), round(windows[-1][0],2)
+        return False, 0, 0.0
+    except: return False, 0, 0.0
+
+def detect_volume_dryup(df):
+    if len(df) < 25: return False
+    try:
+        vol_ma20  = float(df["Volume"].rolling(20).mean().iloc[-1])
+        vol_last5 = float(df["Volume"].iloc[-5:].mean())
+        return vol_last5 < vol_ma20 * 0.70
+    except: return False
+
+def calc_position_size(preco, stop, capital=25000, risk_pct=0.01):
+    if preco <= stop or stop <= 0: return 0, 0.0
+    risco = abs(preco - stop)
+    shares = int(capital * risk_pct / risco)
+    return shares, round(shares * preco, 2)
+
+def calc_expectancy(win_rate=0.45, rr=2.0):
+    return round((win_rate * rr) - ((1-win_rate) * 1.0), 2)
+
+_breadth_cache = {"data": None, "ts": None}
+def get_market_breadth():
+    import time as _t
+    now = _t.time()
+    if _breadth_cache["data"] and _breadth_cache["ts"] and now-_breadth_cache["ts"]<14400:
+        return _breadth_cache["data"]
+    try:
+        sample=["SPY","QQQ","IWM","XLK","XLF","XLV","XLE","XLI","XLY","XLP",
+                "AAPL","MSFT","NVDA","AMZN","META","GOOGL","JPM","JNJ","XOM","PG",
+                "BAC","WMT","UNH","HD","CVX","LLY","ABBV","MRK","PFE","KO"]
+        above=0
+        for t in sample:
+            try:
+                df=obter_dados_alpaca(t,60)
+                if len(df)>=50 and float(df["Close"].iloc[-1])>float(compute_sma(df["Close"],50).iloc[-1]):
+                    above+=1
+            except: continue
+        pct=round(above/len(sample)*100,1)
+        result={"pct_above_sma50":pct,"bullish":pct>=50,"regime":"Forte" if pct>=65 else "Neutro" if pct>=50 else "Fraco"}
+        _breadth_cache["data"]=result; _breadth_cache["ts"]=now
+        return result
+    except: return {"pct_above_sma50":50.0,"bullish":True,"regime":"Desconhecido"}
+
+
 def compute_indicators(df):
     df = df.copy()
     c = df["Close"]
@@ -1333,6 +1390,10 @@ def api_cache_reset():
     _cache["running"]   = False
     threading.Thread(target=refresh_cache, daemon=True).start()
     return jsonify({"status": "reset", "message": "Scan a relançar em background"})
+
+@app.route("/api/breadth", methods=["GET"])
+def api_breadth():
+    return jsonify(get_market_breadth())
 
 @app.route("/api/market-filter", methods=["GET"])
 def api_market_filter():
