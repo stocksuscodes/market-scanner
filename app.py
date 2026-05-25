@@ -1489,7 +1489,9 @@ def api_lookup():
     # RS vs SPY, ATR Compression, Fake Breakout, Market Filter
     rs_score_val, rs_pct = calc_rs_vs_spy(df)
     atr_comp, atr_ratio  = calc_atr_compression(df)
-    fake_bo              = is_fake_breakout(df, slj)
+    _top5_etfs = [s.get("etf","") for s in (_cache.get("top5_sectors") or [])]
+    _in_top5   = etf in _top5_etfs if _top5_etfs else True
+    fake_bo    = is_fake_breakout(df, slj, rs_pct=rs_pct, in_top5=_in_top5)
     mkt                  = get_market_filter()
     score_100            = calc_score_100(total, rs_score_val, atr_comp, mkt["bullish"],
                                           vol_r, adx, fase, slj, ms_score)
