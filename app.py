@@ -575,18 +575,28 @@ def is_fake_breakout(df, slj):
     preco   = float(last["Close"])
 
     vol_3d  = float(df["Volume"].iloc[-3:].mean())
-    # Volume claramente fraco no breakout (< 80% da media) — fake
-    if vol_3d < vol_ma * 0.8 and slj == "LONG":
+
+    # Só avaliar fake em breakouts recentes (subida > 15% nos últimos 10 dias)
+    preco_10d = float(df["Close"].iloc[-10])
+    subida_10d = (preco / preco_10d - 1) * 100 if preco_10d > 0 else 0
+
+    # Tendência estabelecida (subida < 15% recente) — não é fake, é continuação
+    if slj == "LONG" and subida_10d < 15:
+        return False
+
+    # Volume claramente fraco num breakout recente (< 80% da media)
+    if vol_3d < vol_ma * 0.8 and slj == "LONG" and subida_10d >= 15:
         return True
-    # Extensao excessiva da EMA20 (pump emocional)
+    # Extensao excessiva da EMA20 num breakout recente (pump emocional)
     extensao = abs(preco / ema20 - 1) * 100
-    if extensao > 30:
+    if extensao > 35 and subida_10d >= 20:
         return True
-    # Vela de reversao bearish forte no topo (corpo > 60% do range)
+    # Vela de reversao bearish forte no topo de breakout recente
     corpo = abs(last["Close"] - last["Open"])
     rng   = last["High"] - last["Low"]
     if (slj == "LONG" and last["Close"] < last["Open"]
-            and corpo > rng * 0.6 and last["Close"] < prev["Close"]):
+            and corpo > rng * 0.7 and last["Close"] < prev["Close"]
+            and subida_10d >= 15):
         return True
     return False
 
