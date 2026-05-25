@@ -575,20 +575,18 @@ def is_fake_breakout(df, slj):
     preco   = float(last["Close"])
 
     vol_3d  = float(df["Volume"].iloc[-3:].mean())
-    prev2   = df.iloc[-3]
-    # Volume fraco nos ultimos 3 dias
-    if vol_3d < vol_ma * 1.5 and slj == "LONG":
+    # Volume claramente fraco no breakout (< 80% da media) — fake
+    if vol_3d < vol_ma * 0.8 and slj == "LONG":
         return True
-    # Extensao excessiva da EMA20
+    # Extensao excessiva da EMA20 (pump emocional)
     extensao = abs(preco / ema20 - 1) * 100
-    if extensao > 25:
+    if extensao > 30:
         return True
-    # Vela de reversao bearish
-    if slj == "LONG" and last["Close"] < last["Open"] and last["Close"] < prev["Close"]:
-        return True
-    # Dois dias consecutivos de fraqueza
-    if (last["Close"] < last["Open"] and prev["Close"] < prev["Open"]
-            and last["Close"] < prev["Close"]):
+    # Vela de reversao bearish forte no topo (corpo > 60% do range)
+    corpo = abs(last["Close"] - last["Open"])
+    rng   = last["High"] - last["Low"]
+    if (slj == "LONG" and last["Close"] < last["Open"]
+            and corpo > rng * 0.6 and last["Close"] < prev["Close"]):
         return True
     return False
 
