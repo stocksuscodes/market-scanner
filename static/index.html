@@ -761,7 +761,10 @@ async function runScan() {
     });
     const data = await r.json();
     const signals = data.sinais || [];
-    lastSignals = signals;`n    lastRanking = (typeof data !== "undefined" && data.ranking_snapshot) ? data.ranking_snapshot : lastRanking;`n`n    clearInterval(progInterval);
+    lastSignals = signals;
+    lastRanking = (typeof data !== "undefined" && data.ranking_snapshot) ? data.ranking_snapshot : lastRanking;
+
+    clearInterval(progInterval);
 
     document.getElementById('m-total').textContent = data.total;
     document.getElementById('m-long').textContent  = signals.filter(s => s.slj === 'LONG').length;
