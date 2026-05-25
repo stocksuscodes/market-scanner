@@ -414,6 +414,7 @@
 const SECTORES = [];
 let selected = {};
 let lastSignals = [];
+let lastRanking = [];
 let openDetail = null;
 
 const PHASE_CLASS = {
@@ -810,7 +811,7 @@ function renderResults(signals) {
 
   renderRows(signals);
   openDetail = null;
-  if (data.ranking_snapshot) renderHeatmap(data.ranking_snapshot);
+  if (lastRanking && lastRanking.length) renderHeatmap(lastRanking);
   checkWatchlistAlerts(signals);
   // Update RS ratings based on all rs_pct values
   const allRs = signals.map(s => s.rs_pct||0).filter(v => v !== null);
