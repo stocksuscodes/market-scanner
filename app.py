@@ -1274,6 +1274,16 @@ def score_minervini(df):
 
 
 
+@app.route("/api/cache/reset", methods=["GET"])
+def api_cache_reset():
+    """Força novo scan imediato — limpa cache e relança em background."""
+    global _cache
+    _cache["sinais"]    = []
+    _cache["timestamp"] = None
+    _cache["running"]   = False
+    threading.Thread(target=refresh_cache, daemon=True).start()
+    return jsonify({"status": "reset", "message": "Scan a relançar em background"})
+
 @app.route("/api/market-filter", methods=["GET"])
 def api_market_filter():
     """Camada 1 — Market Filter: SPY vs SMA50."""
