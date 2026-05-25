@@ -557,7 +557,7 @@ def get_market_filter():
 # ─────────────────────────────────────────────
 #  FAKE BREAKOUT FILTER
 # ─────────────────────────────────────────────
-def is_fake_breakout(df, slj):
+def is_fake_breakout(df, slj, rs_pct=0, in_top5=True):
     """
     Detecta breakouts falsos:
     - Breakout sem volume (vol < 1.2x média)
@@ -1664,3 +1664,5 @@ if __name__ == "__main__":
         print("  [RAILWAY] A iniciar cache em background...")
         threading.Thread(target=_schedule_cache_refresh, daemon=True).start()
     app.run(debug=False, host="0.0.0.0", port=int(os.getenv("PORT", 5000)))
+
+
