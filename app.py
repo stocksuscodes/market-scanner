@@ -574,15 +574,21 @@ def is_fake_breakout(df, slj):
     ema20   = float(compute_ema(df["Close"], 20).iloc[-1])
     preco   = float(last["Close"])
 
-    # Volume insuficiente no breakout
-    if vol_now < vol_ma * 1.2:
+    vol_3d  = float(df["Volume"].iloc[-3:].mean())
+    prev2   = df.iloc[-3]
+    # Volume fraco nos ultimos 3 dias
+    if vol_3d < vol_ma * 1.5 and slj == "LONG":
         return True
-    # Extensão excessiva da EMA20 (pump emocional)
+    # Extensao excessiva da EMA20
     extensao = abs(preco / ema20 - 1) * 100
-    if extensao > 20:
+    if extensao > 25:
         return True
-    # Vela de reversão: abriu alto, fechou baixo (bearish engulf no breakout LONG)
+    # Vela de reversao bearish
     if slj == "LONG" and last["Close"] < last["Open"] and last["Close"] < prev["Close"]:
+        return True
+    # Dois dias consecutivos de fraqueza
+    if (last["Close"] < last["Open"] and prev["Close"] < prev["Open"]
+            and last["Close"] < prev["Close"]):
         return True
     return False
 
@@ -1418,6 +1424,10 @@ def api_lookup():
     mkt                  = get_market_filter()
     score_100            = calc_score_100(total, rs_score_val, atr_comp, mkt["bullish"],
                                           vol_r, adx, fase, slj, ms_score)
+    # Sector rotation penalty
+    top5_etfs = [s.get("etf","") for s in (_cache.get("top5_sectors") or [])]
+    if etf and top5_etfs and etf not in top5_etfs:
+        score_100 = max(0, score_100 - 10)
 
     # Markov detalhado
     markov_data = markov_detalhado(df)
