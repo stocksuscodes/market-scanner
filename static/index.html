@@ -284,6 +284,12 @@
     .rank-grid { grid-template-columns: repeat(2,1fr); }
     .params-row { grid-template-columns: repeat(2,1fr); }
   }
+
+@media print {
+  .run-btn, .btn-primary, .btn-secondary, .detail-btns, .rescan-btn, .footer button { display: none !important; }
+  body { background: white !important; color: black !important; }
+  .sig-row { break-inside: avoid; }
+}
 </style>
 </head>
 <body>
@@ -320,7 +326,12 @@
       <div class="config-title" style="margin-top:8px;">Tickers por sector</div>
       <div class="sectors-grid" id="sectors-grid"></div>
     </div>
-    <div class="params-row" style="margin-top:14px">
+    <!-- HEATMAP SECTORIAL -->
+    <div id="heatmap-section" style="margin-bottom:12px;display:none;">
+      <div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">◈ Heatmap Sectorial — Momentum 10d <button onclick="document.getElementById('heatmap-section').style.display='none'" style="background:none;border:none;color:#555;cursor:pointer;font-size:10px;">✕</button></div>
+      <div id="heatmap-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:5px;"></div>
+    </div>
+        <div class="params-row" style="margin-top:14px">
       <div class="param-group"><label>Preço mín $</label><input type="number" id="p-min" value="5" min="1"></div>
       <div class="param-group"><label>Preço máx $</label><input type="number" id="p-max" value="50" min="1"></div>
       <div class="param-group"><label>ADX mín</label><input type="number" id="adx-min" value="10" min="1"></div>
@@ -793,6 +804,8 @@ function renderResults(signals) {
 
   renderRows(signals);
   openDetail = null;
+  if (data.ranking_snapshot) renderHeatmap(data.ranking_snapshot);
+  checkWatchlistAlerts(signals);
 }
 
 function renderRows(sigs) {
@@ -1477,6 +1490,55 @@ async function loadHistory() {
   } catch(e) { table.innerHTML = '<div style="color:#f87171;font-size:11px;">Erro ao carregar histórico.</div>'; section.style.display='block'; }
 }
 
+
+
+function renderHeatmap(ranking) {
+  const section = document.getElementById('heatmap-section');
+  const grid    = document.getElementById('heatmap-grid');
+  if (!ranking || !ranking.length || !section) return;
+  section.style.display = 'block';
+  const max = Math.max(...ranking.map(r => Math.abs(r.mom10||r.perf||0))) || 1;
+  grid.innerHTML = ranking.map((r, i) => {
+    const pct  = r.mom10 || r.perf || 0;
+    const norm = pct / max;
+    const green = Math.max(0, Math.round(norm * 160));
+    const red   = Math.max(0, Math.round(-norm * 160));
+    const bg    = `rgb(${15+red},${15+green},15)`;
+    const border = i < 5 ? '1px solid #4ade80' : '1px solid #222';
+    const label = r.sector || r.nome || r.etf || '';
+    return `<div style="background:${bg};border:${border};border-radius:5px;padding:6px 5px;text-align:center;cursor:pointer;" onclick="filterBySector('${label}')">
+      <div style="font-size:9px;font-weight:700;color:#ddd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${label}">${label}</div>
+      <div style="font-size:11px;font-weight:800;color:${pct>=0?'#4ade80':'#f87171'};margin-top:2px">${pct>=0?'+':''}${(pct||0).toFixed(1)}%</div>
+      <div style="font-size:8px;color:#666">#${i+1}</div>
+    </div>`;
+  }).join('');
+}
+function filterBySector(sector) {
+  if (!sector || !lastSignals) return;
+  const sigs = lastSignals.filter(s => (s.sector||'').includes(sector) || sector.includes(s.sector||''));
+  renderRows(sigs.length ? sigs : lastSignals);
+}
+function checkWatchlistAlerts(signals) {
+  if (!watchlist || !watchlist.length) return;
+  const prev = JSON.parse(localStorage.getItem('scanner_prev_signals') || '{}');
+  let alerts = [];
+  signals.forEach(s => {
+    if (watchlist.includes(s.ticker) && prev[s.ticker] && prev[s.ticker] !== s.slj)
+      alerts.push(`${s.ticker}: ${prev[s.ticker]} → ${s.slj}`);
+    prev[s.ticker] = s.slj;
+  });
+  localStorage.setItem('scanner_prev_signals', JSON.stringify(prev));
+  if (alerts.length) {
+    const d = document.createElement('div');
+    d.style.cssText = 'position:fixed;top:16px;right:16px;background:#1e3a1e;border:1px solid #4ade80;color:#4ade80;padding:10px 14px;border-radius:8px;font-size:11px;z-index:9999;max-width:260px;white-space:pre';
+    d.textContent = '⚡ Mudança de sinal:
+' + alerts.join('
+');
+    document.body.appendChild(d);
+    setTimeout(() => d.remove(), 6000);
+  }
+}
+function exportPDF() { window.print(); }
 
 </script>
 </body>

@@ -1249,7 +1249,7 @@ def api_cache_status():
         "running": _cache["running"],
         "timestamp": str(_cache["timestamp"]),
         "top5_sectors": _cache["top5_sectors"],
-        "ranking_snapshot": [{"nome": s["nome"], "etf": s["etf"], "perf": s["perf"], "rank": s["rank"], "top5": s["top5"]} for s in _cache["ranking"]],
+        "ranking_snapshot": [{"nome": s["nome"], "etf": s["etf"], "sector": s.get("sector", s["nome"]), "perf": s["perf"], "rank": s["rank"], "top5": s["top5"], "mom10": s.get("mom10", s["perf"])} for s in _cache["ranking"]],
     })
 
 @app.route("/api/preco/<ticker>", methods=["GET"])
