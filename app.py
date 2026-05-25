@@ -1014,7 +1014,8 @@ def analisar_ativo(ticker, etf, sector_nome, p_min, p_max, adx_min, rsi_max):
     atr_comp, atr_ratio = calc_atr_compression(df)
 
     # Fake breakout check
-    fake_bo = is_fake_breakout(df, slj)
+    _rs_pct_fb, _ = calc_rs_vs_spy(df)
+    fake_bo = is_fake_breakout(df, slj, rs_pct=_rs_pct_fb, in_top5=True)
 
     # Market Filter
     mkt = get_market_filter()
