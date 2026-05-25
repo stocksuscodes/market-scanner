@@ -567,6 +567,9 @@ def is_fake_breakout(df, slj, rs_pct=0, in_top5=True):
     """
     if len(df) < 22:
         return False
+    # Excepcao: lideres fortes em sectores top 5 nunca sao fake
+    if rs_pct > 40 and in_top5:
+        return False
     last    = df.iloc[-1]
     prev    = df.iloc[-2]
     vol_ma  = float(df["Volume"].rolling(20).mean().iloc[-1])
