@@ -19,6 +19,43 @@ from datetime import datetime, timedelta
 import pandas as pd
 import requests
 from flask import Flask, jsonify, request
+import json
+from pathlib import Path
+
+HISTORY_FILE = Path(__file__).parent / "scan_history.json"
+
+def save_scan_history(sinais, timestamp):
+    try:
+        history = []
+        if HISTORY_FILE.exists():
+            with open(HISTORY_FILE, 'r', encoding='utf-8') as f:
+                history = json.load(f)
+        entry = {
+            "date": timestamp.strftime("%Y-%m-%d"),
+            "time": timestamp.strftime("%H:%M"),
+            "total_long": sum(1 for s in sinais if s.get("slj") == "LONG"),
+            "total_short": sum(1 for s in sinais if s.get("slj") == "SHORT"),
+            "total_aguardar": sum(1 for s in sinais if s.get("slj") == "AGUARDAR"),
+            "top_long": [{"ticker": s["ticker"], "score_100": s.get("score_100",0), "rs_pct": s.get("rs_pct",0)} for s in sinais if s.get("slj") == "LONG"][:10],
+            "top_short": [{"ticker": s["ticker"], "score_100": s.get("score_100",0)} for s in sinais if s.get("slj") == "SHORT"][:5],
+        }
+        history = [h for h in history if h["date"] != entry["date"]]
+        history.append(entry)
+        history = sorted(history, key=lambda x: x["date"], reverse=True)[:30]
+        with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
+            json.dump(history, f, ensure_ascii=False, indent=2)
+        print(f"  [HISTORY] Guardado: {entry['date']}", flush=True)
+    except Exception as e:
+        print(f"  [HISTORY] Erro: {e}", flush=True)
+
+def load_scan_history():
+    try:
+        if HISTORY_FILE.exists():
+            with open(HISTORY_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+    except:
+        pass
+    return []
 from flask_cors import CORS
 
 warnings.filterwarnings("ignore")
@@ -213,15 +250,22 @@ def _run_full_scan_background():
         _cache["total"]     = len(all_tickers)
         _cache["timestamp"] = datetime.utcnow()
         print(f"  [CACHE] Scan completo: {len(sinais)} sinais de {len(all_tickers)} tickers (Top 5 sectores)", flush=True)
+        save_scan_history(sinais, _cache["timestamp"])
     except Exception as e:
         print(f"  [CACHE] Erro: {e}", flush=True)
     finally:
         _cache["running"] = False
 
 def _schedule_cache_refresh():
-    """Refreshes cache every 2 hours."""
+    """Refreshes cache every 2 hours or at 9h30 EST (14h30 UTC)."""
+    from datetime import timedelta
     _run_full_scan_background()
-    timer = threading.Timer(7200, _schedule_cache_refresh)
+    now_utc = datetime.utcnow()
+    target = now_utc.replace(hour=14, minute=30, second=0, microsecond=0)
+    if now_utc >= target:
+        target += timedelta(days=1)
+    delay = min(7200, (target - now_utc).total_seconds())
+    timer = threading.Timer(delay, _schedule_cache_refresh)
     timer.daemon = True
     timer.start()
 
