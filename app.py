@@ -25,30 +25,33 @@ from pathlib import Path
 HISTORY_FILE = Path(__file__).parent / "scan_history.json"
 
 def save_scan_history(sinais, timestamp):
+    """Guarda resultados do scan no histórico diário."""
     try:
         history = []
         if HISTORY_FILE.exists():
             with open(HISTORY_FILE, 'r', encoding='utf-8') as f:
                 history = json.load(f)
+        # Limitar a 30 dias de histórico
         entry = {
             "date": timestamp.strftime("%Y-%m-%d"),
             "time": timestamp.strftime("%H:%M"),
             "total_long": sum(1 for s in sinais if s.get("slj") == "LONG"),
             "total_short": sum(1 for s in sinais if s.get("slj") == "SHORT"),
             "total_aguardar": sum(1 for s in sinais if s.get("slj") == "AGUARDAR"),
-            "top_long": [{"ticker": s["ticker"], "score_100": s.get("score_100",0), "rs_pct": s.get("rs_pct",0)} for s in sinais if s.get("slj") == "LONG"][:10],
-            "top_short": [{"ticker": s["ticker"], "score_100": s.get("score_100",0)} for s in sinais if s.get("slj") == "SHORT"][:5],
+            "top_long": [{"ticker": s["ticker"], "sector": s.get("sector",""), "score_100": s.get("score_100",0), "rs_pct": s.get("rs_pct",0), "fase": s.get("fase","")} for s in sinais if s.get("slj") == "LONG"][:10],
+            "top_short": [{"ticker": s["ticker"], "sector": s.get("sector",""), "score_100": s.get("score_100",0), "rs_pct": s.get("rs_pct",0), "fase": s.get("fase","")} for s in sinais if s.get("slj") == "SHORT"][:5],
         }
+        # Não duplicar o mesmo dia
         history = [h for h in history if h["date"] != entry["date"]]
         history.append(entry)
         history = sorted(history, key=lambda x: x["date"], reverse=True)[:30]
         with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
             json.dump(history, f, ensure_ascii=False, indent=2)
-        print(f"  [HISTORY] Guardado: {entry['date']}", flush=True)
     except Exception as e:
-        print(f"  [HISTORY] Erro: {e}", flush=True)
+        print(f"  [HISTORY] Erro ao guardar: {e}", flush=True)
 
 def load_scan_history():
+    """Carrega histórico de scans."""
     try:
         if HISTORY_FILE.exists():
             with open(HISTORY_FILE, 'r', encoding='utf-8') as f:
@@ -56,6 +59,7 @@ def load_scan_history():
     except:
         pass
     return []
+
 from flask_cors import CORS
 
 warnings.filterwarnings("ignore")
@@ -257,14 +261,16 @@ def _run_full_scan_background():
         _cache["running"] = False
 
 def _schedule_cache_refresh():
-    """Refreshes cache every 2 hours or at 9h30 EST (14h30 UTC)."""
-    from datetime import timedelta
+    """Refreshes cache every 2 hours. Prioritizes 9h30 EST on market days."""
     _run_full_scan_background()
     now_utc = datetime.utcnow()
+    # 9h30 EST = 14h30 UTC
     target = now_utc.replace(hour=14, minute=30, second=0, microsecond=0)
     if now_utc >= target:
+        from datetime import timedelta
         target += timedelta(days=1)
-    delay = min(7200, (target - now_utc).total_seconds())
+    secs_930 = (target - now_utc).total_seconds()
+    delay = min(7200, secs_930)
     timer = threading.Timer(delay, _schedule_cache_refresh)
     timer.daemon = True
     timer.start()
@@ -557,49 +563,38 @@ def get_market_filter():
 # ─────────────────────────────────────────────
 #  FAKE BREAKOUT FILTER
 # ─────────────────────────────────────────────
-def is_fake_breakout(df, slj, rs_pct=0, in_top5=True):
+def is_fake_breakout(df, slj):
     """
     Detecta breakouts falsos:
-    - Breakout sem volume (vol < 1.2x média)
-    - Preço demasiado longe da EMA20 (>20% extensão)
-    - Pump de 1 dia sem seguimento (close < open do dia do breakout)
+    - Breakout sem volume confirmado (vol < 1.5x média nos últimos 3 dias)
+    - Preço demasiado longe da EMA20 (>25% extensão)
+    - Vela de reversão bearish no topo
+    - Gap sem seguimento (fechou abaixo da abertura 2 dias seguidos)
     Retorna fake=True se for breakout falso.
     """
     if len(df) < 22:
         return False
-    # Excepcao: lideres fortes em sectores top 5 nunca sao fake
-    if rs_pct > 40 and in_top5:
-        return False
     last    = df.iloc[-1]
     prev    = df.iloc[-2]
+    prev2   = df.iloc[-3]
     vol_ma  = float(df["Volume"].rolling(20).mean().iloc[-1])
-    vol_now = float(last["Volume"])
+    vol_3d  = float(df["Volume"].iloc[-3:].mean())
     ema20   = float(compute_ema(df["Close"], 20).iloc[-1])
     preco   = float(last["Close"])
 
-    vol_3d  = float(df["Volume"].iloc[-3:].mean())
-
-    # Só avaliar fake em breakouts recentes (subida > 15% nos últimos 10 dias)
-    preco_10d = float(df["Close"].iloc[-10])
-    subida_10d = (preco / preco_10d - 1) * 100 if preco_10d > 0 else 0
-
-    # Tendência estabelecida (subida < 15% recente) — não é fake, é continuação
-    if slj == "LONG" and subida_10d < 15:
-        return False
-
-    # Volume claramente fraco num breakout recente (< 80% da media)
-    if vol_3d < vol_ma * 0.8 and slj == "LONG" and subida_10d >= 15:
+    # Volume fraco nos últimos 3 dias (não confirma movimento)
+    if vol_3d < vol_ma * 1.5 and slj == "LONG":
         return True
-    # Extensao excessiva da EMA20 num breakout recente (pump emocional)
+    # Extensão excessiva da EMA20
     extensao = abs(preco / ema20 - 1) * 100
-    if extensao > 35 and subida_10d >= 20:
+    if extensao > 25:
         return True
-    # Vela de reversao bearish forte no topo de breakout recente
-    corpo = abs(last["Close"] - last["Open"])
-    rng   = last["High"] - last["Low"]
-    if (slj == "LONG" and last["Close"] < last["Open"]
-            and corpo > rng * 0.7 and last["Close"] < prev["Close"]
-            and subida_10d >= 15):
+    # Vela de reversão bearish no topo (LONG)
+    if slj == "LONG" and last["Close"] < last["Open"] and last["Close"] < prev["Close"]:
+        return True
+    # Dois dias consecutivos a fechar abaixo da abertura (fraqueza)
+    if (last["Close"] < last["Open"] and prev["Close"] < prev["Open"]
+            and last["Close"] < prev["Close"]):
         return True
     return False
 
@@ -645,108 +640,147 @@ def calc_score_100(score_slj, rs_score, atr_compressao, market_bullish,
 
 
 
+# ─────────────────────────────────────────────
+#  VCP DETECTION (Volatility Contraction Pattern — Minervini)
+# ─────────────────────────────────────────────
 def detect_vcp(df):
-    if len(df) < 60: return False, 0, 0.0
+    """
+    Detecta VCP: 3+ contrações de range consecutivas com volume decrescente.
+    Retorna vcp=True, contractions=N, tightness=% ultima contracao.
+    """
+    if len(df) < 60:
+        return False, 0, 0.0
     try:
+        # Dividir em janelas de 10 dias e medir range de cada uma
         windows = []
         for i in range(3):
-            w = df.iloc[-(30-i*10):-(20-i*10)] if i < 2 else df.iloc[-10:]
-            rng = float((w["High"].max()-w["Low"].min())/w["Close"].mean()*100)
+            w = df.iloc[-(30 - i*10):-(20 - i*10)] if i < 2 else df.iloc[-10:]
+            rng = float((w["High"].max() - w["Low"].min()) / w["Close"].mean() * 100)
             vol = float(w["Volume"].mean())
             windows.append((rng, vol))
-        rc = all(windows[i][0]>windows[i+1][0] for i in range(2))
-        vc = all(windows[i][1]>windows[i+1][1] for i in range(2))
-        if rc and vc: return True, len(windows), round(windows[-1][0],2)
+        # Verificar contração progressiva de range E volume
+        range_contracting = all(windows[i][0] > windows[i+1][0] for i in range(len(windows)-1))
+        vol_contracting   = all(windows[i][1] > windows[i+1][1] for i in range(len(windows)-1))
+        if range_contracting and vol_contracting:
+            tightness = round(windows[-1][0], 2)  # % range última janela
+            contractions = len(windows)
+            return True, contractions, tightness
         return False, 0, 0.0
-    except: return False, 0, 0.0
+    except:
+        return False, 0, 0.0
 
+
+# ─────────────────────────────────────────────
+#  VOLUME DRY-UP
+# ─────────────────────────────────────────────
 def detect_volume_dryup(df):
-    if len(df) < 25: return False
+    """
+    Detecta volume dry-up: últimos 3-5 dias com volume < 70% da média 20d.
+    Sinal de acumulação silenciosa institucional antes do breakout.
+    """
+    if len(df) < 25:
+        return False
     try:
         vol_ma20  = float(df["Volume"].rolling(20).mean().iloc[-1])
         vol_last5 = float(df["Volume"].iloc[-5:].mean())
         return vol_last5 < vol_ma20 * 0.70
-    except: return False
+    except:
+        return False
 
+
+# ─────────────────────────────────────────────
+#  RS RATING 1-99 (IBD/O'Neil style)
+# ─────────────────────────────────────────────
+_rs_ratings_cache = {"ratings": {}, "ts": None}
+
+def calc_rs_rating(rs_pct, all_rs_pcts):
+    """
+    Normaliza RS vs SPY para percentil 1-99 entre todos os tickers do scan.
+    rs_pct: performance relativa deste ticker vs SPY
+    all_rs_pcts: lista de todos os rs_pct do scan actual
+    """
+    if not all_rs_pcts or len(all_rs_pcts) < 2:
+        return 50
+    sorted_rs = sorted(all_rs_pcts)
+    rank = sorted_rs.index(min(sorted_rs, key=lambda x: abs(x - rs_pct)))
+    percentil = int(rank / len(sorted_rs) * 98) + 1
+    return min(99, max(1, percentil))
+
+
+
+# ─────────────────────────────────────────────
+#  POSITION SIZING (PTJ — 1% risk per trade)
+# ─────────────────────────────────────────────
 def calc_position_size(preco, stop, capital=25000, risk_pct=0.01):
-    if preco <= stop or stop <= 0: return 0, 0.0
-    risco = abs(preco - stop)
-    shares = int(capital * risk_pct / risco)
-    return shares, round(shares * preco, 2)
+    """
+    Calcula número de acções a comprar para arriscar risk_pct do capital.
+    Default: capital $25k, risco 1% por trade.
+    """
+    if preco <= stop or stop <= 0:
+        return 0, 0.0
+    risco_por_accao = abs(preco - stop)
+    capital_risco   = capital * risk_pct
+    shares          = int(capital_risco / risco_por_accao)
+    exposicao       = round(shares * preco, 2)
+    return shares, exposicao
 
+
+# ─────────────────────────────────────────────
+#  EXPECTANCY SCORE
+# ─────────────────────────────────────────────
 def calc_expectancy(win_rate=0.45, rr=2.0):
-    return round((win_rate * rr) - ((1-win_rate) * 1.0), 2)
+    """
+    Expectancy = (win_rate * avg_win) - (loss_rate * avg_loss)
+    Com R/R de 2:1 e win rate 45%: expectancy positiva.
+    """
+    avg_win  = rr
+    avg_loss = 1.0
+    expectancy = (win_rate * avg_win) - ((1 - win_rate) * avg_loss)
+    return round(expectancy, 2)
 
+
+
+# ─────────────────────────────────────────────
+#  MARKET BREADTH FILTER
+# ─────────────────────────────────────────────
 _breadth_cache = {"data": None, "ts": None}
+
 def get_market_breadth():
-    import time as _t
-    now = _t.time()
-    if _breadth_cache["data"] and _breadth_cache["ts"] and now-_breadth_cache["ts"]<14400:
+    """
+    Estima breadth usando uma amostra de tickers do Russell 3000.
+    Calcula % acima da SMA50. Se < 50% mercado fraco.
+    Usa cache de 4h.
+    """
+    import time as _time
+    now = _time.time()
+    if _breadth_cache["data"] and _breadth_cache["ts"] and now - _breadth_cache["ts"] < 14400:
         return _breadth_cache["data"]
     try:
-        sample=["SPY","QQQ","IWM","XLK","XLF","XLV","XLE","XLI","XLY","XLP",
-                "AAPL","MSFT","NVDA","AMZN","META","GOOGL","JPM","JNJ","XOM","PG",
-                "BAC","WMT","UNH","HD","CVX","LLY","ABBV","MRK","PFE","KO"]
-        above=0
+        # Amostra representativa de 30 tickers
+        sample = ["SPY","QQQ","IWM","XLK","XLF","XLV","XLE","XLI","XLY","XLP",
+                  "AAPL","MSFT","NVDA","AMZN","META","GOOGL","JPM","JNJ","XOM","PG",
+                  "BAC","WMT","UNH","HD","CVX","LLY","ABBV","MRK","PFE","KO"]
+        above_sma50 = 0
         for t in sample:
             try:
-                df=obter_dados_alpaca(t,60)
-                if len(df)>=50 and float(df["Close"].iloc[-1])>float(compute_sma(df["Close"],50).iloc[-1]):
-                    above+=1
-            except: continue
-        pct=round(above/len(sample)*100,1)
-        result={"pct_above_sma50":pct,"bullish":pct>=50,"regime":"Forte" if pct>=65 else "Neutro" if pct>=50 else "Fraco"}
-        _breadth_cache["data"]=result; _breadth_cache["ts"]=now
+                df = obter_dados_alpaca(t, 60)
+                if len(df) >= 50:
+                    sma50 = float(compute_sma(df["Close"], 50).iloc[-1])
+                    if float(df["Close"].iloc[-1]) > sma50:
+                        above_sma50 += 1
+            except:
+                continue
+        pct = round(above_sma50 / len(sample) * 100, 1)
+        result = {
+            "pct_above_sma50": pct,
+            "bullish": pct >= 50,
+            "regime": "Forte" if pct >= 65 else "Neutro" if pct >= 50 else "Fraco",
+        }
+        _breadth_cache["data"] = result
+        _breadth_cache["ts"]   = now
         return result
-    except: return {"pct_above_sma50":50.0,"bullish":True,"regime":"Desconhecido"}
-
-
-
-# ─────────────────────────────────────────────
-#  DIAS RESTANTES NA FASE (WYCKOFF)
-# ─────────────────────────────────────────────
-DURACOES_MEDIAS = {
-    "Acumulacao": 35, "Acumulação": 35,
-    "Spring":     12,
-    "Markup":     45,
-    "Test":       10,
-    "Distribuicao": 25, "Distribuição": 25,
-    "Markdown":   20,
-    "UTAD":        8,
-}
-
-def calcular_dias_restantes(fase, sinal, rsi, adx, preco, ma200):
-    """
-    Estima dias restantes na fase actual.
-    Maturidade = RSI(40%) + ADX(30%) + DistMA200(30%)
-    Dias restantes = duracao_media * (1 - maturidade)
-    """
-    try:
-        dur = DURACOES_MEDIAS.get(fase, 20)
-
-        # RSI maturidade: LONG sobrecomprado = mais maduro
-        if sinal == "LONG":
-            rsi_mat = max(0, min(1, (rsi - 50) / 30))
-        elif sinal == "SHORT":
-            rsi_mat = max(0, min(1, (50 - rsi) / 30))
-        else:
-            rsi_mat = max(0, min(1, abs(rsi - 50) / 30))
-
-        # ADX maturidade: ADX alto = tendencia forte mas pode estar a acabar
-        adx_mat = max(0, min(1, (adx - 20) / 40))
-
-        # Distancia MA200 maturidade
-        if ma200 and ma200 > 0:
-            dist_pct = abs((preco / ma200 - 1) * 100)
-            dist_mat = max(0, min(1, dist_pct / 40))
-        else:
-            dist_mat = 0.0
-
-        maturidade = rsi_mat * 0.4 + adx_mat * 0.3 + dist_mat * 0.3
-        dias = max(1, round(dur * (1 - maturidade)))
-        return f"~{dias}d"
     except:
-        return "N/A"
+        return {"pct_above_sma50": 50.0, "bullish": True, "regime": "Desconhecido"}
 
 
 def compute_indicators(df):
@@ -1065,8 +1099,7 @@ def analisar_ativo(ticker, etf, sector_nome, p_min, p_max, adx_min, rsi_max):
     atr_comp, atr_ratio = calc_atr_compression(df)
 
     # Fake breakout check
-    _rs_pct_fb, _ = calc_rs_vs_spy(df)
-    fake_bo = is_fake_breakout(df, slj, rs_pct=_rs_pct_fb, in_top5=True)
+    fake_bo = is_fake_breakout(df, slj)
 
     # Market Filter
     mkt = get_market_filter()
@@ -1088,6 +1121,7 @@ def analisar_ativo(ticker, etf, sector_nome, p_min, p_max, adx_min, rsi_max):
         "notes_simons": sn, "notes_livermore": ln, "notes_ptj": pn,
         "notes_wyckoff": wn, "notes_markov": mn,
         "signal_label": "FORTE" if total >= 12 else "MÉDIO" if total >= 7 else "FRACO",
+        "dias_rest": calcular_dias_restantes(fase, slj, rsi, adx, preco, sma200),
         "rs_score": rs_score, "rs_pct": rs_pct,
         "atr_compression": atr_comp, "atr_ratio": atr_ratio,
         "fake_breakout": fake_bo,
@@ -1448,17 +1482,24 @@ def api_cache_reset():
     _cache["sinais"]    = []
     _cache["timestamp"] = None
     _cache["running"]   = False
-    threading.Thread(target=_run_full_scan_background, daemon=True).start()
+    threading.Thread(target=refresh_cache, daemon=True).start()
     return jsonify({"status": "reset", "message": "Scan a relançar em background"})
 
-@app.route("/api/breadth", methods=["GET"])
-def api_breadth():
-    return jsonify(get_market_breadth())
+@app.route("/api/history", methods=["GET"])
+def api_history():
+    """Devolve histórico dos últimos 30 scans."""
+    return jsonify(load_scan_history())
 
 @app.route("/api/market-filter", methods=["GET"])
 def api_market_filter():
-    """Camada 1 — Market Filter: SPY vs SMA50."""
-    return jsonify(get_market_filter())
+    """Camada 1 — Market Filter: SPY vs SMA50 + Breadth."""
+    mkt = get_market_filter()
+    return jsonify(mkt)
+
+@app.route("/api/breadth", methods=["GET"])
+def api_breadth():
+    """Market breadth — % tickers acima SMA50."""
+    return jsonify(get_market_breadth())
 
 @app.route("/api/lookup", methods=["POST"])
 def api_lookup():
@@ -1541,16 +1582,22 @@ def api_lookup():
     # RS vs SPY, ATR Compression, Fake Breakout, Market Filter
     rs_score_val, rs_pct = calc_rs_vs_spy(df)
     atr_comp, atr_ratio  = calc_atr_compression(df)
-    _top5_etfs = [s.get("etf","") for s in (_cache.get("top5_sectors") or [])]
-    _in_top5   = etf in _top5_etfs if _top5_etfs else True
-    fake_bo    = is_fake_breakout(df, slj, rs_pct=rs_pct, in_top5=_in_top5)
+    fake_bo              = is_fake_breakout(df, slj)
     mkt                  = get_market_filter()
     score_100            = calc_score_100(total, rs_score_val, atr_comp, mkt["bullish"],
                                           vol_r, adx, fase, slj, ms_score)
-    # Sector rotation penalty
+    # Sector rotation penalty — se sector não está no top 5 do ranking, penaliza 10 pts
     top5_etfs = [s.get("etf","") for s in (_cache.get("top5_sectors") or [])]
     if etf and top5_etfs and etf not in top5_etfs:
         score_100 = max(0, score_100 - 10)
+    # VCP + Volume dry-up
+    vcp, vcp_n, vcp_t = detect_vcp(df)
+    vol_dryup = detect_volume_dryup(df)
+    if vcp: score_100 = min(100, score_100 + 8)
+    if vol_dryup: score_100 = min(100, score_100 + 5)
+    # Position sizing + expectancy
+    pos_shares, pos_exposure = calc_position_size(preco, stop)
+    expectancy = calc_expectancy(win_rate=0.45, rr=rr if rr > 0 else 2.0)
 
     # Markov detalhado
     markov_data = markov_detalhado(df)
@@ -1601,7 +1648,6 @@ def api_lookup():
         "sig_trend": sig_trend, "sig_momentum": sig_momentum,
         "sig_volume": sig_volume, "sig_composite": sig_composite,
         "sig_signal": sig_signal,
-        "dias_rest": calcular_dias_restantes(fase, slj, rsi, adx, preco, sma200),
         "rs_score": rs_score_val, "rs_pct": rs_pct,
         "atr_compression": atr_comp, "atr_ratio": atr_ratio,
         "fake_breakout": fake_bo,
@@ -1609,6 +1655,11 @@ def api_lookup():
         "market_regime": mkt.get("regime", "—"),
         "spy_vs_sma50": mkt.get("spy_vs_sma50", 0.0),
         "score_100": score_100,
+        "vcp": vcp, "vcp_contractions": vcp_n, "vcp_tightness": vcp_t,
+        "volume_dryup": vol_dryup,
+        "rs_rating": 50,
+        "position_shares": pos_shares, "position_exposure": pos_exposure,
+        "expectancy": expectancy,
     })
 
 
@@ -1717,6 +1768,3 @@ if __name__ == "__main__":
         print("  [RAILWAY] A iniciar cache em background...")
         threading.Thread(target=_schedule_cache_refresh, daemon=True).start()
     app.run(debug=False, host="0.0.0.0", port=int(os.getenv("PORT", 5000)))
-
-
-
