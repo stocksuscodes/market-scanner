@@ -324,7 +324,7 @@
       <div class="param-group"><label>Preço mín $</label><input type="number" id="p-min" value="5" min="1"></div>
       <div class="param-group"><label>Preço máx $</label><input type="number" id="p-max" value="50" min="1"></div>
       <div class="param-group"><label>ADX mín</label><input type="number" id="adx-min" value="10" min="1"></div>
-      <div class="param-group"><label>RSI máx</label><input type="number" id="rsi-max" value="55" min="1"></div>
+      <div class="param-group"><label>RSI máx</label><input type="number" id="rsi-max" value="72" min="1"></div>
     </div>
     <div class="sel-info" id="sel-info"></div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
@@ -703,7 +703,7 @@ async function runScan() {
   const pMin   = parseFloat(document.getElementById('p-min').value)   || 5;
   const pMax   = parseFloat(document.getElementById('p-max').value)   || 50;
   const adxMin = parseFloat(document.getElementById('adx-min').value) || 10;
-  const rsiMax = parseFloat(document.getElementById('rsi-max').value) || 55;
+  const rsiMax = parseFloat(document.getElementById('rsi-max').value) || 72;
 
   const tickers = [];
   SECTORES.forEach(s => {
@@ -780,7 +780,7 @@ function renderResults(signals) {
         <span class="th">Ticker</span><span class="th">Sector</span>
         <span class="th">Preço</span><span class="th">RSI</span><span class="th">ADX</span>
         <span class="th">Fase Wyckoff</span><span class="th">Sinal SLJ</span>
-        <span class="th">R/R</span><span class="th">Stop / Alvo</span><span class="th">Score SLJ</span>
+        <span class="th">R/R</span><span class="th">Stop / Alvo</span><span class="th">Score SLJ</span><span class="th">S100</span><span class="th">RS/SPY</span>
       </div>
       <div id="rows"></div>
     </div>`;
@@ -807,6 +807,8 @@ function renderRows(sigs) {
       <span class="td ${s.rr >= 2 ? 'green' : 'muted'}">${s.rr}:1</span>
       <span class="td td-sa"><span class="red">▼ $${s.stop.toFixed(2)}</span><br><span class="green">▲ $${s.alvo.toFixed(2)}</span></span>
       <span class="td"><span style="font-size:9px;padding:2px 6px;border-radius:3px;font-weight:700;background:${(s.score_total||0)>=12?'#fee2e2':(s.score_total||0)>=7?'#fef9c3':'#f3f4f6'};color:${(s.score_total||0)>=12?'#b91c1c':(s.score_total||0)>=7?'#854d0e':'#6b7280'};">${s.score_total!=null?s.score_total+'/15':'—'}</span></span>
+      <span class="td"><span style="font-size:9px;padding:2px 6px;border-radius:3px;font-weight:700;background:${(s.score_100||0)>=70?'#052e16':(s.score_100||0)>=50?'#1c1917':'#1c1010'};color:${(s.score_100||0)>=70?'#4ade80':(s.score_100||0)>=50?'#f59e0b':'#f87171'};border:1px solid ${(s.score_100||0)>=70?'#166534':(s.score_100||0)>=50?'#78350f':'#7f1d1d'};">${s.score_100!=null?s.score_100:'—'}</span></span>
+      <span class="td" style="font-size:10px;font-weight:600;color:${s.rs_pct>=0?'#4ade80':'#f87171'}">${s.rs_pct!=null?(s.rs_pct>=0?'+':'')+s.rs_pct+'%':'—'}${s.atr_compression?'<br><span style="font-size:8px;color:#a5b4fc">⊡ compressão</span>':''}</span>
     </div>
     <div class="detail" id="det-${i}">
       <div class="detail-grid">
@@ -1115,7 +1117,7 @@ async function runRussellScan() {
   const pMin   = parseFloat(document.getElementById('p-min').value)   || 5;
   const pMax   = parseFloat(document.getElementById('p-max').value)   || 500;
   const adxMin = parseFloat(document.getElementById('adx-min').value) || 10;
-  const rsiMax = parseFloat(document.getElementById('rsi-max').value) || 75;
+  const rsiMax = parseFloat(document.getElementById('rsi-max').value) || 72;
 
   // First call to start background scan
   try {
