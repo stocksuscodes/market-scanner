@@ -701,6 +701,54 @@ def get_market_breadth():
     except: return {"pct_above_sma50":50.0,"bullish":True,"regime":"Desconhecido"}
 
 
+
+# ─────────────────────────────────────────────
+#  DIAS RESTANTES NA FASE (WYCKOFF)
+# ─────────────────────────────────────────────
+DURACOES_MEDIAS = {
+    "Acumulacao": 35, "Acumulação": 35,
+    "Spring":     12,
+    "Markup":     45,
+    "Test":       10,
+    "Distribuicao": 25, "Distribuição": 25,
+    "Markdown":   20,
+    "UTAD":        8,
+}
+
+def calcular_dias_restantes(fase, sinal, rsi, adx, preco, ma200):
+    """
+    Estima dias restantes na fase actual.
+    Maturidade = RSI(40%) + ADX(30%) + DistMA200(30%)
+    Dias restantes = duracao_media * (1 - maturidade)
+    """
+    try:
+        dur = DURACOES_MEDIAS.get(fase, 20)
+
+        # RSI maturidade: LONG sobrecomprado = mais maduro
+        if sinal == "LONG":
+            rsi_mat = max(0, min(1, (rsi - 50) / 30))
+        elif sinal == "SHORT":
+            rsi_mat = max(0, min(1, (50 - rsi) / 30))
+        else:
+            rsi_mat = max(0, min(1, abs(rsi - 50) / 30))
+
+        # ADX maturidade: ADX alto = tendencia forte mas pode estar a acabar
+        adx_mat = max(0, min(1, (adx - 20) / 40))
+
+        # Distancia MA200 maturidade
+        if ma200 and ma200 > 0:
+            dist_pct = abs((preco / ma200 - 1) * 100)
+            dist_mat = max(0, min(1, dist_pct / 40))
+        else:
+            dist_mat = 0.0
+
+        maturidade = rsi_mat * 0.4 + adx_mat * 0.3 + dist_mat * 0.3
+        dias = max(1, round(dur * (1 - maturidade)))
+        return f"~{dias}d"
+    except:
+        return "N/A"
+
+
 def compute_indicators(df):
     df = df.copy()
     c = df["Close"]
@@ -1553,6 +1601,7 @@ def api_lookup():
         "sig_trend": sig_trend, "sig_momentum": sig_momentum,
         "sig_volume": sig_volume, "sig_composite": sig_composite,
         "sig_signal": sig_signal,
+        "dias_rest": calcular_dias_restantes(fase, slj, rsi, adx, preco, sma200),
         "rs_score": rs_score_val, "rs_pct": rs_pct,
         "atr_compression": atr_comp, "atr_ratio": atr_ratio,
         "fake_breakout": fake_bo,
