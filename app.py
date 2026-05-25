@@ -1430,7 +1430,7 @@ def api_scan_russell():
     body    = request.get_json() or {}
     p_min   = float(body.get("p_min",   5))
     p_max   = float(body.get("p_max",   500))
-    adx_min = float(body.get("adx_min", 15))
+    adx_min = float(body.get("adx_min", 10))
     rsi_max = float(body.get("rsi_max", 75))
     vol_min = int(body.get("vol_min",   500_000))
 
