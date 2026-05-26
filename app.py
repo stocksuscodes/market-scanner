@@ -381,6 +381,12 @@ SECTORES = [
         "LHX","RTX","TENB","RPD","CYBR","VRNS","GEN","QLYS","BB","TMICY",
         "NTCT","J","HON","LMT","NOC","PLTR","SNOW","IBM","ORCL","FFIV","CIBR",
     ]},
+    # Temático — AI Software
+    {"etf": "IGV", "nome": "AI Software", "tickers": [
+        "PLTR","SNOW","DDOG","CFLT","GTLB","NEWR","DOCN","FSLY","BIGC","APPS",
+        "SOUN","BBAI","AI","PATH","ASAN","MNDY","BRZE","AMPL","SPSC","ALRM",
+        "IGV","WCLD","BVS","JAMF","FROG","PCTY","HUBS","ZS","OKTA","CRWD",
+    ]},
     # Temático — AI Networking
     {"etf": "ANET", "nome": "AI Networking", "tickers": [
         "ANET","CSCO","JNPR","EXTR","CIEN","FFIV","INFN","VIAV","LITE","COHR",
