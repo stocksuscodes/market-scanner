@@ -475,25 +475,28 @@ async function loadRotacaoSectorial() {
     }
     const total = hist.length;
 
-    // TABLE
-    let tableHtml = '<table class="rot-table"><thead><tr>';
-    tableHtml += '<th>Sector</th>';
-    ['Sem.1','Sem.-1','Sem.-2','Sem.-3'].forEach(l => { tableHtml += `<th>${l}</th>`; });
-    tableHtml += '<th>▲▼</th></tr></thead><tbody>';
+    // TABLE — layout único responsivo (funciona em desktop e mobile)
+    let tableHtml = '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;"><table style="width:100%;border-collapse:collapse;font-size:10px;table-layout:auto;"><thead><tr>';
+    tableHtml += '<th style="font-size:8px;color:var(--text3);text-transform:uppercase;padding:3px 6px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;min-width:110px;">Sector</th>';
+    ['Sem.1','Sem.-1','Sem.-2','Sem.-3'].forEach(l => {
+      tableHtml += `<th style="font-size:8px;color:var(--text3);text-transform:uppercase;padding:3px 4px;text-align:center;border-bottom:1px solid var(--border);white-space:nowrap;">${l}</th>`;
+    });
+    tableHtml += '<th style="font-size:8px;color:var(--text3);padding:3px 4px;text-align:center;border-bottom:1px solid var(--border);">▲▼</th></tr></thead><tbody>';
     hist.forEach(sec => {
       const tendCls = sec.tendencia === 'up' ? 'up' : sec.tendencia === 'down' ? 'down' : 'flat';
       const tendSym = sec.tendencia === 'up' ? '▲' : sec.tendencia === 'down' ? '▼' : '—';
-      tableHtml += '<tr>';
-      tableHtml += `<td><div class="rot-nome">${sec.nome}</div><div class="rot-etf">${sec.etf}</div></td>`;
+      const tendColor = sec.tendencia === 'up' ? '#00e676' : sec.tendencia === 'down' ? '#ff1744' : '#ffd600';
+      tableHtml += '<tr style="border-bottom:1px solid var(--border3);">';
+      tableHtml += `<td style="padding:4px 6px;"><div style="font-weight:600;font-size:11px;color:var(--text);white-space:nowrap;">${sec.nome}</div><div style="font-size:9px;color:var(--text3);">${sec.etf}</div></td>`;
       sec.semanas.forEach(sem => {
         const cls = rankClass(sem.rank, total);
-        const perfColor = sem.perf >= 0 ? 'color:#00e676' : 'color:#ff1744';
-        tableHtml += `<td><span class="rot-week-num ${cls}">${sem.rank}</span><div class="rot-perf" style="${perfColor}">${sem.perf >= 0 ? '+' : ''}${sem.perf}%</div></td>`;
+        const perfColor = sem.perf >= 0 ? '#00e676' : '#ff1744';
+        tableHtml += `<td style="padding:4px 4px;text-align:center;white-space:nowrap;"><span class="rot-week-num ${cls}" style="display:inline-block;width:20px;height:20px;border-radius:50%;line-height:20px;font-weight:700;font-size:10px;text-align:center;">${sem.rank}</span><div style="font-size:8px;color:${perfColor};margin-top:2px;">${sem.perf >= 0 ? '+' : ''}${sem.perf}%</div></td>`;
       });
-      tableHtml += `<td><span class="rot-tend ${tendCls}">${tendSym}</span></td>`;
+      tableHtml += `<td style="padding:4px 4px;text-align:center;font-size:16px;font-weight:700;color:${tendColor};">${tendSym}</td>`;
       tableHtml += '</tr>';
     });
-    tableHtml += '</tbody></table>';
+    tableHtml += '</tbody></table></div>';
 
     // SVG CHART — rank evolution
     const chartW = 280, chartH = 320, padL = 8, padT = 20, padB = 10;
