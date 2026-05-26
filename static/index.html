@@ -279,10 +279,35 @@
   .rescan-btn { font-size: 10px; padding: 5px 14px; border-radius: 6px; border: 1px solid var(--border2); background: transparent; color: var(--text3); cursor: pointer; font-family: var(--font); display: flex; align-items: center; gap: 6px; transition: all .12s; }
   .rescan-btn:hover { background: var(--bg3); color: var(--text); }
 
-  @media (max-width: 600px) {
+  @media (max-width: 768px) {
     .metrics { grid-template-columns: repeat(2,1fr); }
     .rank-grid { grid-template-columns: repeat(2,1fr); }
     .params-row { grid-template-columns: repeat(2,1fr); }
+
+    /* Rotação sectorial — scroll horizontal no mobile */
+    #rotation-table { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .rot-table { width: 100%; min-width: 520px; font-size: 9px; table-layout: auto; }
+    .rot-table th, .rot-table td { padding: 3px 3px; white-space: nowrap; }
+    .rot-table th:first-child { width: auto; min-width: 90px; }
+    .rot-nome { font-size: 10px; }
+    .rot-etf { font-size: 8px; }
+    .rot-week-num { width: 18px; height: 18px; line-height: 18px; font-size: 10px; }
+    .rot-perf { font-size: 8px; }
+
+    /* Tabela de resultados do scan — scroll horizontal */
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .tbl-head, .sig-row { min-width: 700px; }
+
+    /* Config panel mais compacto */
+    .config-panel { padding: 10px; }
+    .header-left h1 { font-size: 14px; }
+    .header-left p { font-size: 8px; }
+
+    /* Lookup panel */
+    .lookup-grid { grid-template-columns: repeat(2, 1fr); }
+
+    /* Detail panel */
+    .detail-grid { grid-template-columns: repeat(2, 1fr); }
   }
 
 @media print {
