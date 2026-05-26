@@ -381,6 +381,52 @@ SECTORES = [
         "LHX","RTX","TENB","RPD","CYBR","VRNS","GEN","QLYS","BB","TMICY",
         "NTCT","J","HON","LMT","NOC","PLTR","SNOW","IBM","ORCL","FFIV","CIBR",
     ]},
+    # Temático — AI Networking
+    {"etf": "ANET", "nome": "AI Networking", "tickers": [
+        "ANET","CSCO","JNPR","EXTR","CIEN","FFIV","INFN","VIAV","LITE","COHR",
+        "NTGR","CALX","AAOI","IPHI","ACIA","BAND","RBBN","SHEN","LUMN","FYBR",
+    ]},
+    # Temático — AI Semicondutores
+    {"etf": "SOXX", "nome": "AI Semicond.", "tickers": [
+        "NVDA","AMD","AVGO","QCOM","MRVL","INTC","ON","WOLF","AMBA","LSCC",
+        "RMBS","SITM","SMCI","AMAT","LRCX","KLAC","ENTG","MKSI","BRKR","TER",
+        "COHU","ICHR","ONTO","FORM","ACLS","AXTI","UCTT","CEVA","SITM","SOXX",
+    ]},
+    # Temático — AI DataCenters / Cloud
+    {"etf": "WCLD", "nome": "AI DataCenters", "tickers": [
+        "EQIX","DLR","AMT","CCI","SBAC","CONE","QTS","UNIT","IIPR","COLD",
+        "VRT","GTLB","SNOW","DDOG","CFLT","NET","FSLY","DOCN","ESTC","NEWR",
+        "WCLD","CLOU","SKYY","IAAS","NTNX","PSTG","PURE","BOX","BAND","TWLO",
+    ]},
+    # Temático — AI Espacial / ARKX
+    {"etf": "ARKX", "nome": "AI Espacial", "tickers": [
+        "RKLB","LUNR","SPCE","ASTR","RDW","BKSY","PL","SPIR","SATL","ASTS",
+        "GSAT","IRDM","VSAT","SATS","HON","GE","NOC","LMT","RTX","GD",
+        "ARKX","TDG","HEI","MOOG","HWM","CW","HXL","BALL","TRMB","GRMN",
+    ]},
+    # Temático — AI Robótica
+    {"etf": "ROBT", "nome": "AI Robótica", "tickers": [
+        "IRBT","ISRG","BRKS","TRMK","PATH","AI","BBAI","SOUN","AITX","CXAI",
+        "FCNCA","ABB","HON","EMR","ROK","PTC","ANSYS","CDNS","SNPS","KEYS",
+        "ROBT","BOTZ","ARKQ","PRNT","XONE","DM","VJET","SSYS","MTLS","NNDM",
+    ]},
+    # Temático — Aerospace & Defense
+    {"etf": "ITA", "nome": "Aerospace & Defense", "tickers": [
+        "LMT","RTX","NOC","GD","BA","TDG","HEI","TXT","HII","L3T",
+        "KTOS","AVAV","UAVS","PSN","CACI","SAIC","BAH","LDOS","MANT","DRS",
+        "ITA","AJRD","SPR","WWD","KAMN","CW","HXL","MOOG","HEICO","TGI",
+    ]},
+    # Temático — AI Memória (MU standalone)
+    {"etf": "MU", "nome": "AI Memória", "tickers": [
+        "MU","WDC","STX","NAND","SIMO","ISSI","IMOS","AUMN","CEVA","RMBS",
+        "LSCC","SITM","AMBA","MCHP","SWKS","QRVO","MXIM","ADI","TXN","NVDA",
+    ]},
+    # Temático — AI Energia / Grid
+    {"etf": "GRID", "nome": "AI Energia", "tickers": [
+        "NEE","AES","STEM","FLNC","NOVA","AMRC","REGI","GPRE","GEVO","CLNE",
+        "BE","PLUG","FCEL","BLDP","HYSR","ITM","HYZN","HTOO","NFGC","GRID",
+        "VRT","ETRN","OGE","CMS","NI","CNP","PCG","EIX","SO","DUK",
+    ]},
 ]
 
 TICKER_SECTOR_MAP = {}
@@ -1355,7 +1401,7 @@ def api_preco(ticker):
 
 @app.route("/api/ai-analysis", methods=["POST"])
 def api_ai_analysis():
-    ANTHROPIC_KEY = os.getenv("ANTHROPIC_API_KEY", "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")
+    ANTHROPIC_KEY = os.getenv("ANTHROPIC_API_KEY", "")
     body   = request.get_json() or {}
     prompt = body.get("prompt", "")
     if not ANTHROPIC_KEY:
