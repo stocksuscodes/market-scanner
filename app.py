@@ -261,17 +261,17 @@ def _run_full_scan_background():
         _cache["running"] = False
 
 def _schedule_cache_refresh():
-    """Refreshes cache every 2 hours. Prioritizes 9h30 EST on market days."""
+    """Refreshes cache once daily at 22h00 UTC (after US market close at 21h00 UTC).
+    Lisboa: 23h00 inverno / 00h00 verão."""
     _run_full_scan_background()
+    from datetime import timedelta
     now_utc = datetime.utcnow()
-    # 9h30 EST = 14h30 UTC
-    target = now_utc.replace(hour=14, minute=30, second=0, microsecond=0)
+    target = now_utc.replace(hour=22, minute=0, second=0, microsecond=0)
     if now_utc >= target:
-        from datetime import timedelta
         target += timedelta(days=1)
-    secs_930 = (target - now_utc).total_seconds()
-    delay = min(7200, secs_930)
-    timer = threading.Timer(delay, _schedule_cache_refresh)
+    secs_to_refresh = (target - now_utc).total_seconds()
+    print(f"  [CACHE] Próximo refresh às 22h00 UTC — em {secs_to_refresh/3600:.1f}h", flush=True)
+    timer = threading.Timer(secs_to_refresh, _schedule_cache_refresh)
     timer.daemon = True
     timer.start()
 
