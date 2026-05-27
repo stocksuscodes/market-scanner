@@ -175,7 +175,7 @@ def prefiltro_russell(tickers: list, p_min: float = 5, p_max: float = 500,
     for ticker in tickers:
         try:
             df = obter_dados_alpaca(ticker, 30)
-            if len(df) < 25:
+            if len(df) < 20:
                 continue
             df = compute_indicators(df)
             last = df.iloc[-1]
@@ -242,7 +242,7 @@ def _run_full_scan_background():
         for item in all_tickers:
             resultado = analisar_ativo(
                 item["ticker"], item["etf"], item["sector"],
-                5, 100, 10, 75
+                5, 500, 10, 80
             )
             if resultado:
                 sinais.append(resultado)
@@ -261,17 +261,17 @@ def _run_full_scan_background():
         _cache["running"] = False
 
 def _schedule_cache_refresh():
-    """Refreshes cache once daily at 22h00 UTC (after US market close at 21h00 UTC).
-    Lisboa: 23h00 inverno / 00h00 verão."""
+    """Refreshes cache every 2 hours. Prioritizes 9h30 EST on market days."""
     _run_full_scan_background()
-    from datetime import timedelta
     now_utc = datetime.utcnow()
-    target = now_utc.replace(hour=22, minute=0, second=0, microsecond=0)
+    # 9h30 EST = 14h30 UTC
+    target = now_utc.replace(hour=14, minute=30, second=0, microsecond=0)
     if now_utc >= target:
+        from datetime import timedelta
         target += timedelta(days=1)
-    secs_to_refresh = (target - now_utc).total_seconds()
-    print(f"  [CACHE] Próximo refresh às 22h00 UTC — em {secs_to_refresh/3600:.1f}h", flush=True)
-    timer = threading.Timer(secs_to_refresh, _schedule_cache_refresh)
+    secs_930 = (target - now_utc).total_seconds()
+    delay = min(7200, secs_930)
+    timer = threading.Timer(delay, _schedule_cache_refresh)
     timer.daemon = True
     timer.start()
 
@@ -381,57 +381,64 @@ SECTORES = [
         "LHX","RTX","TENB","RPD","CYBR","VRNS","GEN","QLYS","BB","TMICY",
         "NTCT","J","HON","LMT","NOC","PLTR","SNOW","IBM","ORCL","FFIV","CIBR",
     ]},
-    # Temático — AI Software
-    {"etf": "IGV", "nome": "AI Software", "tickers": [
-        "PLTR","SNOW","DDOG","CFLT","GTLB","NEWR","DOCN","FSLY","BIGC","APPS",
-        "SOUN","BBAI","AI","PATH","ASAN","MNDY","BRZE","AMPL","SPSC","ALRM",
-        "IGV","WCLD","BVS","JAMF","FROG","PCTY","HUBS","ZS","OKTA","CRWD",
-    ]},
-    # Temático — AI Networking
-    {"etf": "ANET", "nome": "AI Networking", "tickers": [
-        "ANET","CSCO","JNPR","EXTR","CIEN","FFIV","INFN","VIAV","LITE","COHR",
-        "NTGR","CALX","AAOI","IPHI","ACIA","BAND","RBBN","SHEN","LUMN","FYBR",
-    ]},
-    # Temático — AI Semicondutores
+    # AI — Semicondutores
     {"etf": "SOXX", "nome": "AI Semicond.", "tickers": [
-        "NVDA","AMD","AVGO","QCOM","MRVL","INTC","ON","WOLF","AMBA","LSCC",
-        "RMBS","SITM","SMCI","AMAT","LRCX","KLAC","ENTG","MKSI","BRKR","TER",
-        "COHU","ICHR","ONTO","FORM","ACLS","AXTI","UCTT","CEVA","SITM","SOXX",
+        "NVDA","AMD","INTC","ASML","TSM","ARM","AVGO","MRVL","QCOM","TXN",
+        "AMAT","LRCX","KLAC","MU","ON","WOLF","AMBA","LSCC","RMBS","SITM",
+        "SMCI","ENTG","ONTO","ACLS","COHU","MPWR","ADI","MCHP","SWKS","QRVO",
     ]},
-    # Temático — AI DataCenters / Cloud
-    {"etf": "WCLD", "nome": "AI DataCenters", "tickers": [
-        "EQIX","DLR","AMT","CCI","SBAC","CONE","QTS","UNIT","IIPR","COLD",
-        "VRT","GTLB","SNOW","DDOG","CFLT","NET","FSLY","DOCN","ESTC","NEWR",
-        "WCLD","CLOU","SKYY","IAAS","NTNX","PSTG","PURE","BOX","BAND","TWLO",
-    ]},
-    # Temático — AI Espacial / ARKX
-    {"etf": "ARKX", "nome": "AI Espacial", "tickers": [
-        "RKLB","LUNR","SPCE","ASTR","RDW","BKSY","PL","SPIR","SATL","ASTS",
-        "GSAT","IRDM","VSAT","SATS","HON","GE","NOC","LMT","RTX","GD",
-        "ARKX","TDG","HEI","MOOG","HWM","CW","HXL","BALL","TRMB","GRMN",
-    ]},
-    # Temático — AI Robótica
-    {"etf": "ROBT", "nome": "AI Robótica", "tickers": [
-        "IRBT","ISRG","BRKS","TRMK","PATH","AI","BBAI","SOUN","AITX","CXAI",
-        "FCNCA","ABB","HON","EMR","ROK","PTC","ANSYS","CDNS","SNPS","KEYS",
-        "ROBT","BOTZ","ARKQ","PRNT","XONE","DM","VJET","SSYS","MTLS","NNDM",
-    ]},
-    # Temático — Aerospace & Defense
-    {"etf": "ITA", "nome": "Aerospace & Defense", "tickers": [
-        "LMT","RTX","NOC","GD","BA","TDG","HEI","TXT","HII","L3T",
-        "KTOS","AVAV","UAVS","PSN","CACI","SAIC","BAH","LDOS","MANT","DRS",
-        "ITA","AJRD","SPR","WWD","KAMN","CW","HXL","MOOG","HEICO","TGI",
-    ]},
-    # Temático — AI Memória (MU standalone)
+    # AI — Memória & Storage
     {"etf": "MU", "nome": "AI Memória", "tickers": [
-        "MU","WDC","STX","NAND","SIMO","ISSI","IMOS","AUMN","CEVA","RMBS",
-        "LSCC","SITM","AMBA","MCHP","SWKS","QRVO","MXIM","ADI","TXN","NVDA",
+        "MU","STX","WDC","SNDK","NTAP","PURE","KIOXF","NAND","STEC",
+        "NVDA","AMD","SMCI","DELL","HPE","IBM","ORCL","SNOW","DDOG","ESTC",
     ]},
-    # Temático — AI Energia / Grid
+    # AI — Networking & Photonics
+    {"etf": "ANET", "nome": "AI Networking", "tickers": [
+        "ANET","CSCO","NOK","LITE","COHR","AAOI","GLW","CIEN","VIAV","INFN",
+        "JNPR","EXTR","FFIV","AVGO","MRVL","QCOM","ERIC","NTCT","ZBRA","AKAM",
+    ]},
+    # AI — Data Centers & Neoclouds
+    {"etf": "WCLD", "nome": "AI DataCenters", "tickers": [
+        "NBIS","IREN","CRWV","CIFR","WULF","SMCI","DELL","HPE","NTAP","IBM",
+        "CORZ","HUT","MARA","RIOT","CLSK","BTBT","NVDA","AMD","AMZN","MSFT",
+    ]},
+    # AI — Power & Energy
     {"etf": "GRID", "nome": "AI Energia", "tickers": [
-        "NEE","AES","STEM","FLNC","NOVA","AMRC","REGI","GPRE","GEVO","CLNE",
-        "BE","PLUG","FCEL","BLDP","HYSR","ITM","HYZN","HTOO","NFGC","GRID",
-        "VRT","ETRN","OGE","CMS","NI","CNP","PCG","EIX","SO","DUK",
+        "CEG","BE","VRT","NVTS","OKLO","UUUU","GEV","LEU","EOSE","SMR",
+        "ETN","NEE","SO","DUK","PCG","AES","EIX","STEM","FLNC","PLUG",
+        "FCEL","BLDP","NUE","X","FCX","MP","AA","CENX",
+    ]},
+    # AI — Applications & Software
+    {"etf": "IGV", "nome": "AI Software", "tickers": [
+        "PLTR","NOW","PANW","CRWD","IGV","CRM","SNOW","DDOG","ZS","OKTA",
+        "NET","FTNT","S","GTLB","CFLT","ESTC","NEWR","DOCN","AI","BBAI",
+        "SOUN","AITX","CXAI","PATH","MSFT","GOOGL","META","AMZN","IBM","ORCL",
+    ]},
+    # AI — Robótica & Drones
+    {"etf": "ROBT", "nome": "AI Robótica", "tickers": [
+        "TSLA","PATH","AMZN","KTOS","ONDS","LMT","AVAV","UMAC","JOBY","ACHR",
+        "RKLB","NOC","RTX","GD","AXON","TACT","VEC","DRS","UAVS","SPCE",
+    ]},
+    # AI — Space & Materials
+    {"etf": "ARKX", "nome": "AI Espacial", "tickers": [
+        "ASTS","RKLB","PL","LUNR","BKSY","FLY","USAR","MP","FCX","AA",
+        "SATL","SPIR","RDW","ASTR","HON","GE","HII","LHX","LDOS","NOC",
+    ]},
+    # Aerospace & Defense
+    {"etf": "ITA", "nome": "Aerospace & Defense", "tickers": [
+        # Grandes (já existentes)
+        "LMT","RTX","NOC","GD","BA","HII","LHX","KTOS","AVAV","AXON",
+        "DRS","TXT","HWM","HXL","CW","TDG","BWXT","BAESY","EADSY","RYCEY",
+        "GE","HEI","WWD","PSN","SWBI","SAFRY","RKLB","SPCE","LUNR","BKSY",
+        "RDW","PL","FLY","ACHR","JOBY","UAVS","UMAC",
+        # Novos
+        "FJET","HOVR","SIDU","PRZO","VOYG","ZENA","XTIA","RCAT",
+        "BETA","PKE","AIRO","MDA","EVEX","EH","ISSC","BYRN",
+        "DFNS","VVX","DPRO","DFSC","SARO","FTAI","CVU","MRCY",
+        "NPK","YSS","AIRI","EMBJ","OPXS","CDRE","ASLE","VTSI",
+        "MOG","ATRO","MTUAY","ATI","RNMBY","DCO","ESLT",
+        "EVTL","AVEX","LOAR","MRLN","VWAV","VSEC","KRMN",
+        "DUKR","MNTS","ARBE","SOAR","CAE",
     ]},
 ]
 
@@ -576,6 +583,52 @@ def calc_atr_compression(df):
 
 
 # ─────────────────────────────────────────────
+#  BOLLINGER BANDWIDTH SQUEEZE
+# ─────────────────────────────────────────────
+def calc_bb_squeeze(df, period=20, std=2.0, lookback=60):
+    """
+    Detecta squeeze de Bollinger Bands:
+    - Calcula bandwidth actual (BB superior - inferior) / BB média × 100
+    - Squeeze = bandwidth actual está no mínimo dos últimos `lookback` dias
+    - squeeze_pct: percentil actual vs histórico (0% = mínimo absoluto, 100% = máximo)
+    - Quanto mais baixo o percentil, mais comprimido e mais explosivo o potencial
+    """
+    if len(df) < period + lookback:
+        return False, 0.0, 1.0
+
+    try:
+        close = df["Close"]
+        ma    = close.rolling(period).mean()
+        std_  = close.rolling(period).std()
+        bb_up = ma + std_ * std
+        bb_dn = ma - std_ * std
+
+        # Bandwidth série completa
+        bw = ((bb_up - bb_dn) / ma * 100).dropna()
+
+        if len(bw) < lookback:
+            return False, 0.0, 1.0
+
+        bw_now  = float(bw.iloc[-1])
+        bw_hist = bw.iloc[-lookback:]
+        bw_min  = float(bw_hist.min())
+        bw_max  = float(bw_hist.max())
+
+        # Percentil: 0 = mínimo histórico (máxima compressão)
+        if bw_max > bw_min:
+            pct = round((bw_now - bw_min) / (bw_max - bw_min) * 100, 1)
+        else:
+            pct = 50.0
+
+        # Squeeze = bandwidth nos 20% inferiores do histórico (percentil <= 20)
+        squeeze = pct <= 20.0
+
+        return squeeze, pct, round(bw_now, 2)
+    except:
+        return False, 0.0, 1.0
+
+
+# ─────────────────────────────────────────────
 #  MARKET FILTER — SPY + VIX
 # ─────────────────────────────────────────────
 _market_filter_cache = {"data": None, "ts": None}
@@ -655,13 +708,13 @@ def is_fake_breakout(df, slj):
 #  SCORE 0-100 PROFISSIONAL
 # ─────────────────────────────────────────────
 def calc_score_100(score_slj, rs_score, atr_compressao, market_bullish,
-                   vol_ratio, adx, fase, slj, ms_score):
+                   vol_ratio, adx, fase, slj, ms_score, bb_squeeze=False):
     """
     Score ponderado 0-100 estilo hedge fund.
     RS vs SPY:      20%
     Wyckoff/SLJ:    20%
     Volume:         15%
-    ATR Compressão: 15%
+    Compressão:     15%  (ATR + BB Squeeze combinados)
     Tendência(ADX): 15%
     Minervini:      10%
     Market Filter:   5%
@@ -675,8 +728,15 @@ def calc_score_100(score_slj, rs_score, atr_compressao, market_bullish,
     # Volume (0-15)
     vol_pts = min(15, (min(vol_ratio, 3) / 3) * 15)
 
-    # ATR Compressão (0-15) — compressão = setup mais limpo
-    comp_pts = 15 if atr_compressao else 0
+    # Compressão (0-15) — ATR ou BB Squeeze (BB vale mais: sinal mais preciso)
+    if bb_squeeze and atr_compressao:
+        comp_pts = 15        # ambos confirmam
+    elif bb_squeeze:
+        comp_pts = 12        # BB squeeze sozinho — forte
+    elif atr_compressao:
+        comp_pts = 7         # ATR sozinho — moderado
+    else:
+        comp_pts = 0
 
     # Tendência ADX (0-15)
     adx_pts = min(15, (min(adx, 50) / 50) * 15)
@@ -833,6 +893,98 @@ def get_market_breadth():
         return result
     except:
         return {"pct_above_sma50": 50.0, "bullish": True, "regime": "Desconhecido"}
+
+
+# ─────────────────────────────────────────────
+#  DIAS RESTANTES + DIAS DECORRIDOS NA FASE (WYCKOFF)
+# ─────────────────────────────────────────────
+DURACOES_MEDIAS = {
+    "Acumulação": 35, "Acumulacao": 35,
+    "Spring":     12,
+    "Markup":     45,
+    "Test":       10,
+    "Distribuição": 25, "Distribuicao": 25,
+    "Markdown":   20,
+    "UTAD":        8,
+}
+
+def calcular_dias_restantes(fase, sinal, rsi, adx, preco, ma200):
+    """
+    Estima dias restantes na fase actual.
+    Maturidade = RSI(40%) + ADX(30%) + DistMA200(30%)
+    Dias restantes = duracao_media * (1 - maturidade)
+    """
+    try:
+        dur = DURACOES_MEDIAS.get(fase, 20)
+        if sinal == "LONG":
+            rsi_mat = max(0, min(1, (rsi - 50) / 30))
+        elif sinal == "SHORT":
+            rsi_mat = max(0, min(1, (50 - rsi) / 30))
+        else:
+            rsi_mat = max(0, min(1, abs(rsi - 50) / 30))
+        adx_mat = max(0, min(1, (adx - 20) / 40))
+        if ma200 and ma200 > 0:
+            dist_pct = abs((preco / ma200 - 1) * 100)
+            dist_mat = max(0, min(1, dist_pct / 40))
+        else:
+            dist_mat = 0.0
+        maturidade = rsi_mat * 0.4 + adx_mat * 0.3 + dist_mat * 0.3
+        dias = max(1, round(dur * (1 - maturidade)))
+        return f"~{dias}d"
+    except:
+        return "N/A"
+
+def calcular_dias_decorridos(df, fase):
+    """
+    Estima dias decorridos na fase actual.
+    Deteta quando a fase mudou comparando os últimos N dias de indicadores.
+    Usa RSI e distância à SMA200 como proxy da fase.
+    """
+    try:
+        if len(df) < 10:
+            return "~1d"
+        closes = df["Close"].values
+        sma200s = df["sma200"].values
+        rsis    = df["rsi"].values
+        adxs    = df["adx"].values
+
+        def _fase_simples(i):
+            try:
+                p = closes[i]; s200 = sma200s[i]; e21 = float(df["ema21"].values[i])
+                r = rsis[i]; a = adxs[i]
+                d200 = (p - s200) / s200 * 100
+                d21  = (p - e21)  / e21  * 100
+                if d200 < -5:                              return "distribuicao"
+                if d21 < -2 and r < 38:                   return "spring"
+                if d200 > 0 and abs(d21) < 3 and a < 30:  return "acumulacao"
+                if d200 > 0 and r > 48 and a > 25:        return "markup"
+                return "test"
+            except:
+                return "?"
+
+        # Percorre do dia mais recente para trás.
+        # A fase só se considera alterada após 3 dias consecutivos fora dela.
+        dias = 1
+        fase_norm = fase.replace("ã","a").replace("ç","c").lower()
+        fora = 0
+        TOLERANCIA = 3
+        LIMITE = 60
+        atingiu_limite = False
+        for i in range(len(df) - 2, max(len(df) - LIMITE, 0), -1):
+            f_i = _fase_simples(i).replace("ã","a").replace("ç","c").lower()
+            if f_i == fase_norm:
+                dias += 1
+                fora = 0
+            else:
+                fora += 1
+                if fora >= TOLERANCIA:
+                    break
+                dias += 1
+        else:
+            atingiu_limite = True
+        return f">50d" if atingiu_limite else f"~{dias}d"
+    except:
+        return "~1d"
 
 
 def compute_indicators(df):
@@ -1092,7 +1244,7 @@ def fase_wyckoff(preco, sma200, ema21, rsi, adx):
 # ─────────────────────────────────────────────
 def analisar_ativo(ticker, etf, sector_nome, p_min, p_max, adx_min, rsi_max):
     df = obter_dados_alpaca(ticker, HISTORY_DAYS)
-    if len(df) < 205:
+    if len(df) < 60:
         return None
     preco = float(df["Close"].iloc[-1])
     if not (p_min <= preco <= p_max):
@@ -1101,13 +1253,16 @@ def analisar_ativo(ticker, etf, sector_nome, p_min, p_max, adx_min, rsi_max):
         return None
     df = compute_indicators(df)
     last = df.iloc[-1]
-    sma200 = float(last["sma200"]) if pd.notna(last["sma200"]) else None
-    ema21  = float(last["ema21"])  if pd.notna(last["ema21"])  else None
-    rsi    = float(last["rsi"])    if pd.notna(last["rsi"])    else None
-    atr    = float(last["atr"])    if pd.notna(last["atr"])    else None
-    adx    = float(last["adx"])    if pd.notna(last["adx"])    else 0.0
-    if any(v is None for v in [sma200, ema21, rsi, atr]):
-        return None
+    sma200 = float(last["sma200"]) if pd.notna(last.get("sma200")) else None
+    ema21  = float(last["ema21"])  if pd.notna(last.get("ema21"))  else None
+    rsi    = float(last["rsi"])    if pd.notna(last.get("rsi"))    else None
+    atr    = float(last["atr"])    if pd.notna(last.get("atr"))    else None
+    adx    = float(last["adx"])    if pd.notna(last.get("adx"))    else 0.0
+    # Fallbacks para tickers com histórico curto (< 200 barras)
+    if sma200 is None: sma200 = float(df["Close"].rolling(min(200, len(df))).mean().iloc[-1]) or preco
+    if ema21  is None: ema21  = preco
+    if rsi    is None: rsi    = 50.0
+    if atr    is None: atr    = preco * 0.02
     ss, sn = score_simons(df)
     ls, ln = score_livermore(df)
     ps, pn = score_ptj(df)
@@ -1131,9 +1286,10 @@ def analisar_ativo(ticker, etf, sector_nome, p_min, p_max, adx_min, rsi_max):
         alvo = round(preco - 4 * atr, 2)
         rr   = round((preco - alvo) / (stop - preco), 1) if stop > preco else 0
     elif slj == "AGUARDAR":
-        stop = round(preco - 1 * atr, 2)   # neutro — apenas referência
-        alvo = round(preco + 2 * atr, 2)   # neutro — apenas referência
-        rr   = 2.0
+        entrada_ref = round(ema21 * 1.015, 2)       # entrada técnica de referência (recuo para EMA21)
+        stop  = round(entrada_ref - 1.5 * atr, 2)  # stop abaixo da entrada projectada
+        alvo  = round(entrada_ref + 3.0 * atr, 2)  # alvo R/R 2:1 sobre entrada
+        rr    = 2.0
     else:
         stop = round(preco - 2 * atr, 2)
         alvo = round(preco + 4 * atr, 2)
@@ -1150,6 +1306,9 @@ def analisar_ativo(ticker, etf, sector_nome, p_min, p_max, adx_min, rsi_max):
     # ATR Compression
     atr_comp, atr_ratio = calc_atr_compression(df)
 
+    # Bollinger Bandwidth Squeeze
+    bb_squeeze, bb_pct, bb_bw = calc_bb_squeeze(df)
+
     # Fake breakout check
     fake_bo = is_fake_breakout(df, slj)
 
@@ -1158,7 +1317,11 @@ def analisar_ativo(ticker, etf, sector_nome, p_min, p_max, adx_min, rsi_max):
 
     # Score 0-100
     score_100 = calc_score_100(total, rs_score, atr_comp, mkt["bullish"],
-                                vol_r, adx, fase, slj, 0)
+                                vol_r, adx, fase, slj, 0, bb_squeeze)
+
+    # Dias decorridos e restantes na fase
+    dias_dec  = calcular_dias_decorridos(df, fase)
+    dias_rest = calcular_dias_restantes(fase, slj, rsi, adx, preco, sma200)
 
     return {
         "ticker": ticker, "etf": etf, "sector": sector_nome,
@@ -1173,9 +1336,10 @@ def analisar_ativo(ticker, etf, sector_nome, p_min, p_max, adx_min, rsi_max):
         "notes_simons": sn, "notes_livermore": ln, "notes_ptj": pn,
         "notes_wyckoff": wn, "notes_markov": mn,
         "signal_label": "FORTE" if total >= 12 else "MÉDIO" if total >= 7 else "FRACO",
-        "dias_rest": calcular_dias_restantes(fase, slj, rsi, adx, preco, sma200),
+        "dias_dec": dias_dec, "dias_rest": dias_rest,
         "rs_score": rs_score, "rs_pct": rs_pct,
         "atr_compression": atr_comp, "atr_ratio": atr_ratio,
+        "bb_squeeze": bb_squeeze, "bb_pct": bb_pct, "bb_bw": bb_bw,
         "fake_breakout": fake_bo,
         "market_bullish": mkt.get("bullish", True),
         "market_regime": mkt.get("regime", "—"),
@@ -1407,7 +1571,7 @@ def api_preco(ticker):
 
 @app.route("/api/ai-analysis", methods=["POST"])
 def api_ai_analysis():
-    ANTHROPIC_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+    ANTHROPIC_KEY = os.getenv("ANTHROPIC_API_KEY", "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")
     body   = request.get_json() or {}
     prompt = body.get("prompt", "")
     if not ANTHROPIC_KEY:
@@ -1614,9 +1778,10 @@ def api_lookup():
         alvo = round(preco - 4 * atr, 2)
         rr   = round((preco - alvo) / (stop - preco), 1) if stop > preco else 0
     elif slj == "AGUARDAR":
-        stop = round(preco - 1 * atr, 2)
-        alvo = round(preco + 2 * atr, 2)
-        rr   = 2.0
+        entrada_ref = round(ema21 * 1.015, 2)       # entrada técnica de referência (recuo para EMA21)
+        stop  = round(entrada_ref - 1.5 * atr, 2)  # stop abaixo da entrada projectada
+        alvo  = round(entrada_ref + 3.0 * atr, 2)  # alvo R/R 2:1 sobre entrada
+        rr    = 2.0
     else:
         stop  = round(preco - 2 * atr, 2)
         alvo  = round(preco + 4 * atr, 2)
@@ -1693,6 +1858,8 @@ def api_lookup():
         "notes_simons": sn, "notes_livermore": ln, "notes_ptj": pn,
         "notes_wyckoff": wn, "notes_markov": mn,
         "signal_label": "FORTE" if total >= 12 else "MÉDIO" if total >= 7 else "FRACO",
+        "dias_dec": calcular_dias_decorridos(df, fase),
+        "dias_rest": calcular_dias_restantes(fase, slj, rsi, adx, preco, sma200),
         "bars": len(df),
         "ms_score": ms_score, "ms_label": ms_label,
         "ms_notes": ms_notes, "ms_vcp": ms_vcp,
@@ -1785,7 +1952,7 @@ def _run_russell_background():
     print("  [RUSSELL] A iniciar scan Russell 3000 em background...", flush=True)
     try:
         tickers_filtrados = prefiltro_russell(RUSSELL_3000_TICKERS, p_min=5, p_max=500,
-                                               vol_min=100_000, adx_min=10)
+                                               vol_min=50_000, adx_min=10)
         print(f"  [RUSSELL] {len(tickers_filtrados)} passaram o pré-filtro", flush=True)
         sinais = []
         for item in tickers_filtrados:
