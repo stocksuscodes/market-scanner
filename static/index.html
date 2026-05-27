@@ -204,7 +204,7 @@
   .markov-regime span { color: var(--text); font-weight: 600; }
 
   /* ── ROTATION TABLE ── */
-  .rot-table { width: 60%; border-collapse: collapse; font-size: 10px; table-layout: fixed; }
+  .rot-table { width: 100%; border-collapse: collapse; font-size: 10px; table-layout: fixed; }
   .rot-table th { font-size: 8px; letter-spacing: 0; color: var(--text3); text-transform: uppercase; padding: 3px 4px; text-align: center; border-bottom: 1px solid var(--border); white-space: nowrap; }
   .rot-table th:first-child { text-align: left; width: 120px; }
   .rot-table td { padding: 4px 4px; border-bottom: 1px solid var(--border3); text-align: center; }
@@ -279,40 +279,10 @@
   .rescan-btn { font-size: 10px; padding: 5px 14px; border-radius: 6px; border: 1px solid var(--border2); background: transparent; color: var(--text3); cursor: pointer; font-family: var(--font); display: flex; align-items: center; gap: 6px; transition: all .12s; }
   .rescan-btn:hover { background: var(--bg3); color: var(--text); }
 
-  @media (max-width: 768px) {
+  @media (max-width: 600px) {
     .metrics { grid-template-columns: repeat(2,1fr); }
     .rank-grid { grid-template-columns: repeat(2,1fr); }
     .params-row { grid-template-columns: repeat(2,1fr); }
-
-    /* Rotação sectorial — scroll horizontal no mobile */
-    #rotation-table { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    .rot-table { width: 100%; min-width: 520px; font-size: 9px; table-layout: auto; }
-    .rot-table th, .rot-table td { padding: 3px 3px; white-space: nowrap; }
-    .rot-table th:first-child { width: auto; min-width: 90px; }
-    .rot-nome { font-size: 10px; }
-    .rot-etf { font-size: 8px; }
-    .rot-week-num { width: 18px; height: 18px; line-height: 18px; font-size: 10px; }
-    .rot-perf { font-size: 8px; }
-
-    /* Botões de scan — full width e grandes no mobile */
-    .run-btn { min-width: 100% !important; width: 100% !important; padding: 14px 10px !important; font-size: 13px !important; margin-bottom: 8px; touch-action: manipulation; }
-    #run-btn, #run-btn-russell { flex: none !important; width: 100% !important; }
-    div[style*="display:flex"][style*="gap:10px"] { flex-direction: column !important; }
-
-    /* Tabela de resultados do scan — scroll horizontal */
-    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    .tbl-head, .sig-row { min-width: 700px; }
-
-    /* Config panel mais compacto */
-    .config-panel { padding: 10px; }
-    .header-left h1 { font-size: 14px; }
-    .header-left p { font-size: 8px; }
-
-    /* Lookup panel */
-    .lookup-grid { grid-template-columns: repeat(2, 1fr); }
-
-    /* Detail panel */
-    .detail-grid { grid-template-columns: repeat(2, 1fr); }
   }
 
 @media print {
@@ -480,28 +450,37 @@ async function loadRotacaoSectorial() {
     }
     const total = hist.length;
 
-    // TABLE — layout único responsivo (funciona em desktop e mobile)
-    let tableHtml = '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;"><table style="width:100%;border-collapse:collapse;font-size:10px;table-layout:auto;"><thead><tr>';
-    tableHtml += '<th style="font-size:8px;color:var(--text3);text-transform:uppercase;padding:3px 6px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;min-width:110px;">Sector</th>';
-    ['Sem.1','Sem.-1','Sem.-2','Sem.-3'].forEach(l => {
-      tableHtml += `<th style="font-size:8px;color:var(--text3);text-transform:uppercase;padding:3px 4px;text-align:center;border-bottom:1px solid var(--border);white-space:nowrap;">${l}</th>`;
-    });
-    tableHtml += '<th style="font-size:8px;color:var(--text3);padding:3px 4px;text-align:center;border-bottom:1px solid var(--border);">▲▼</th></tr></thead><tbody>';
-    hist.forEach(sec => {
-      const tendCls = sec.tendencia === 'up' ? 'up' : sec.tendencia === 'down' ? 'down' : 'flat';
-      const tendSym = sec.tendencia === 'up' ? '▲' : sec.tendencia === 'down' ? '▼' : '—';
-      const tendColor = sec.tendencia === 'up' ? '#00e676' : sec.tendencia === 'down' ? '#ff1744' : '#ffd600';
-      tableHtml += '<tr style="border-bottom:1px solid var(--border3);">';
-      tableHtml += `<td style="padding:4px 6px;"><div style="font-weight:600;font-size:11px;color:var(--text);white-space:nowrap;">${sec.nome}</div><div style="font-size:9px;color:var(--text3);">${sec.etf}</div></td>`;
-      sec.semanas.forEach(sem => {
-        const cls = rankClass(sem.rank, total);
-        const perfColor = sem.perf >= 0 ? '#00e676' : '#ff1744';
-        tableHtml += `<td style="padding:4px 4px;text-align:center;white-space:nowrap;"><span class="rot-week-num ${cls}" style="display:inline-block;width:20px;height:20px;border-radius:50%;line-height:20px;font-weight:700;font-size:10px;text-align:center;">${sem.rank}</span><div style="font-size:8px;color:${perfColor};margin-top:2px;">${sem.perf >= 0 ? '+' : ''}${sem.perf}%</div></td>`;
+    // TABLE — 2 colunas lado a lado
+    const half = Math.ceil(hist.length / 2);
+    const leftSecs  = hist.slice(0, half);
+    const rightSecs = hist.slice(half);
+
+    function buildTable(secs) {
+      let t = '<table class="rot-table"><thead><tr>';
+      t += '<th>Sector</th>';
+      ['Sem.1','Sem.-1','Sem.-2','Sem.-3'].forEach(l => { t += `<th>${l}</th>`; });
+      t += '<th>▲▼</th></tr></thead><tbody>';
+      secs.forEach(sec => {
+        const tendCls = sec.tendencia === 'up' ? 'up' : sec.tendencia === 'down' ? 'down' : 'flat';
+        const tendSym = sec.tendencia === 'up' ? '▲' : sec.tendencia === 'down' ? '▼' : '—';
+        t += '<tr>';
+        t += `<td><div class="rot-nome">${sec.nome}</div><div class="rot-etf">${sec.etf}</div></td>`;
+        sec.semanas.forEach(sem => {
+          const cls = rankClass(sem.rank, total);
+          const perfColor = sem.perf >= 0 ? 'color:#00e676' : 'color:#ff1744';
+          t += `<td><span class="rot-week-num ${cls}">${sem.rank}</span><div class="rot-perf" style="${perfColor}">${sem.perf >= 0 ? '+' : ''}${sem.perf}%</div></td>`;
+        });
+        t += `<td><span class="rot-tend ${tendCls}">${tendSym}</span></td>`;
+        t += '</tr>';
       });
-      tableHtml += `<td style="padding:4px 4px;text-align:center;font-size:16px;font-weight:700;color:${tendColor};">${tendSym}</td>`;
-      tableHtml += '</tr>';
-    });
-    tableHtml += '</tbody></table></div>';
+      t += '</tbody></table>';
+      return t;
+    }
+
+    const tableHtml = `<div style="display:flex;gap:12px;align-items:flex-start;">
+      <div style="flex:1;overflow-x:auto;">${buildTable(leftSecs)}</div>
+      <div style="flex:1;overflow-x:auto;">${buildTable(rightSecs)}</div>
+    </div>`;
 
     // SVG CHART — rank evolution
     const chartW = 280, chartH = 320, padL = 8, padT = 20, padB = 10;
@@ -838,7 +817,7 @@ function renderResults(signals) {
         <span class="th">Ticker</span><span class="th">Sector</span>
         <span class="th">Preço</span><span class="th">RSI</span><span class="th">ADX</span>
         <span class="th">Fase Wyckoff</span><span class="th">Sinal SLJ</span>
-        <span class="th">R/R</span><span class="th">Stop / Alvo</span><span class="th">Score SLJ</span><span class="th">S100</span><span class="th">RS/SPY</span><span class="th">Dias</span>
+        <span class="th">R/R</span><span class="th">Stop / Alvo</span><span class="th">Score SLJ</span><span class="th">S100</span><span class="th">RS/SPY</span><span class="th">Dec / Rest</span>
       </div>
       <div id="rows"></div>
     </div>`;
@@ -872,8 +851,12 @@ function renderRows(sigs) {
       <span class="td td-sa"><span class="red">▼ $${s.stop.toFixed(2)}</span><br><span class="green">▲ $${s.alvo.toFixed(2)}</span></span>
       <span class="td"><span style="font-size:9px;padding:2px 6px;border-radius:3px;font-weight:700;background:${(s.score_total||0)>=12?'#fee2e2':(s.score_total||0)>=7?'#fef9c3':'#f3f4f6'};color:${(s.score_total||0)>=12?'#b91c1c':(s.score_total||0)>=7?'#854d0e':'#6b7280'};">${s.score_total!=null?s.score_total+'/15':'—'}</span>${s.vcp?'<span style="font-size:8px;margin-left:3px;padding:1px 4px;border-radius:3px;background:#1e1b4b;color:#a5b4fc;font-weight:700">VCP</span>':''}${s.volume_dryup?'<span style="font-size:8px;margin-left:2px;padding:1px 4px;border-radius:3px;background:#052e16;color:#4ade80;font-weight:700">DRY</span>':''}</span>
       <span class="td"><span style="font-size:9px;padding:2px 6px;border-radius:3px;font-weight:700;background:${(s.score_100||0)>=70?'#052e16':(s.score_100||0)>=50?'#1c1917':'#1c1010'};color:${(s.score_100||0)>=70?'#4ade80':(s.score_100||0)>=50?'#f59e0b':'#f87171'};border:1px solid ${(s.score_100||0)>=70?'#166534':(s.score_100||0)>=50?'#78350f':'#7f1d1d'};">${s.score_100!=null?s.score_100:'—'}</span></span>
-      <span class="td" style="font-size:10px;font-weight:600;color:${s.rs_pct>=0?'#4ade80':'#f87171'}">${s.rs_pct!=null?(s.rs_pct>=0?'+':'')+s.rs_pct+'%':'—'}${s.atr_compression?'<br><span style="font-size:8px;color:#a5b4fc">⊡ compr.</span>':''}${s.fake_breakout?'<br><span style="font-size:8px;color:#f87171;font-weight:800">⚠ fake</span>':''}</span>
-      <span class="td" style="font-size:10px;color:${s.dias_rest&&s.dias_rest!='N/A'?(parseInt(s.dias_rest)<=10?'#f87171':parseInt(s.dias_rest)<=25?'#f59e0b':'#4ade80'):'#666'}">${s.dias_rest||'—'}</span>
+      <span class="td" style="font-size:10px;font-weight:600;color:${s.rs_pct>=0?'#4ade80':'#f87171'}">${s.rs_pct!=null?(s.rs_pct>=0?'+':'')+s.rs_pct+'%':'—'}${s.atr_compression?'<br><span style="font-size:8px;color:#a5b4fc">⊡ ATR</span>':''}${s.bb_squeeze?'<br><span style="font-size:8px;color:#818cf8;font-weight:800">⊡ BB'+( s.bb_pct!=null?' '+s.bb_pct+'%':'')+' </span>':''}${s.fake_breakout?'<br><span style="font-size:8px;color:#f87171;font-weight:800">⚠ fake</span>':''}</span>
+      <span class="td" style="font-size:10px;display:flex;gap:4px;align-items:center;justify-content:center;">
+        <span style="color:#94a3b8;" title="Dias decorridos na fase">${s.dias_dec||'—'}</span>
+        <span style="color:#475569;">/</span>
+        <span style="color:${s.dias_rest&&s.dias_rest!='N/A'?(parseInt(s.dias_rest)<=10?'#f87171':parseInt(s.dias_rest)<=25?'#f59e0b':'#4ade80'):'#666'}" title="Dias restantes estimados">${s.dias_rest||'—'}</span>
+      </span>
     </div>
     <div class="detail" id="det-${i}">
       <div class="detail-grid">
@@ -1226,7 +1209,7 @@ async function runRussellScan() {
       btn.textContent = '⟳ Russell 3000' + '.'.repeat(dots + 1);
       const done = await pollRussell(pMin, pMax, adxMin, rsiMax);
       if (done) btn.style.borderColor = '#3fb950';
-    }, 60000);
+    }, 20000);
 
   } catch(e) {
     btn.disabled = false;
@@ -1513,6 +1496,34 @@ loadSectores();
 document.addEventListener('DOMContentLoaded', function() {
   const rb = document.getElementById('run-btn-russell');
   if (rb) rb.disabled = false;
+
+  // Mobile fix: retomar polling quando o browser volta ao foreground
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible') {
+      if (russellPolling === null) {
+        fetch('/api/cache/status')
+          .then(r => r.json())
+          .then(data => {
+            const pMin   = parseFloat(document.getElementById('p-min').value)   || 5;
+            const pMax   = parseFloat(document.getElementById('p-max').value)   || 50;
+            const adxMin = parseFloat(document.getElementById('adx-min').value) || 10;
+            const rsiMax = parseFloat(document.getElementById('rsi-max').value) || 72;
+            const btn = document.getElementById('run-btn-russell');
+            if (data.running) {
+              // Scan ainda em curso - retomar polling a cada 20s
+              if (btn) { btn.disabled = false; btn.textContent = '⟳ Russell 3000 em progresso...'; }
+              russellPolling = setInterval(async () => {
+                const done = await pollRussell(pMin, pMax, adxMin, rsiMax);
+                if (done) { clearInterval(russellPolling); russellPolling = null; }
+              }, 20000);
+            } else if (data.sinais > 0) {
+              // Scan terminou em background - carregar resultados automaticamente
+              pollRussell(pMin, pMax, adxMin, rsiMax);
+            }
+          }).catch(() => {});
+      }
+    }
+  });
 });
 
 async function loadHistory() {
