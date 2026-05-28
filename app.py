@@ -1846,6 +1846,87 @@ def api_lookup():
     elif sig_composite <= -5:  sig_signal = "SELL"
     else:                      sig_signal = "NEUTRAL"
 
+    # ── TRADING PLAN: níveis-chave + 3 cenários ──
+    # Níveis-chave a partir dos dados diários
+    day_high    = round(float(df["High"].iloc[-1]), 2)
+    day_low     = round(float(df["Low"].iloc[-1]), 2)
+    day_open    = round(float(df["Open"].iloc[-1]), 2)
+    prior_close = round(float(df["Close"].iloc[-2]), 2) if len(df) >= 2 else round(preco, 2)
+    prior_high  = round(float(df["High"].iloc[-2]), 2)  if len(df) >= 2 else round(preco, 2)
+    vwap_approx = round((day_high + day_low + preco) / 3, 2)
+
+    # Resistências e suportes técnicos
+    resist_1    = round(max(day_high, prior_high), 2)                      # resistência imediata
+    resist_2    = round(max(resist_1, preco * 1.05), 2)                    # resistência secundária (5% acima)
+    suporte_1   = round(ema21, 2)                                           # suporte imediato (EMA21)
+    suporte_2   = round(sma200, 2)                                          # suporte principal (SMA200)
+    breakout_lvl= round(resist_1 * 1.005, 2)                               # breakout = 0.5% acima da resistência
+    falha_lvl   = round(suporte_1 - atr * 0.5, 2)                         # nível de falha estrutural
+
+    # Viés técnico
+    if preco > sma200 and preco > ema21 and rsi > 50 and adx > 20:
+        vies = "Bullish"
+        vies_cor = "green"
+    elif preco < sma200 or (rsi < 40 and adx > 20):
+        vies = "Bearish"
+        vies_cor = "red"
+    else:
+        vies = "Neutro"
+        vies_cor = "amber"
+
+    # Cenário 1 — Long conservador (pullback/reclaim)
+    entrada_conserv = round(suporte_1 * 1.005, 2)   # comprar 0.5% acima da EMA21
+    stop_conserv    = round(suporte_1 - atr, 2)
+    t1_conserv      = round(resist_1, 2)
+    t2_conserv      = round(resist_1 + atr * 2, 2)
+    t3_conserv      = round(resist_1 + atr * 4, 2)
+    rr_conserv      = round((t1_conserv - entrada_conserv) / max(entrada_conserv - stop_conserv, 0.01), 1)
+
+    # Cenário 2 — Breakout agressivo
+    entrada_break   = round(breakout_lvl, 2)
+    stop_break      = round(resist_1 - atr * 0.5, 2)  # stop abaixo do breakout
+    t1_break        = round(entrada_break + atr * 2, 2)
+    t2_break        = round(entrada_break + atr * 4, 2)
+    rr_break        = round((t1_break - entrada_break) / max(entrada_break - stop_break, 0.01), 1)
+
+    # Cenário 3 — Failure/Short
+    falha_trigger   = round(falha_lvl, 2)
+    proj_1_short    = round(suporte_2, 2)                                  # primeiro alvo baixista: SMA200
+    proj_2_short    = round(suporte_2 - atr * 2, 2)                       # segundo alvo baixista
+    magnet_short    = round(min(proj_2_short, preco * 0.85), 2)            # íman: -15%
+
+    # Estrutura de preço
+    if preco > resist_1 * 0.99:
+        estrutura = "Extensão"
+    elif preco > suporte_1 * 0.98 and preco < resist_1 * 1.01:
+        estrutura = "Compressão" if atr_comp else "Pullback"
+    elif preco <= suporte_1 * 1.005 and preco >= suporte_1 * 0.995:
+        estrutura = "Reclaim"
+    else:
+        estrutura = "Indefinida"
+
+    trading_plan = {
+        "vies": vies, "vies_cor": vies_cor, "estrutura": estrutura,
+        "day_high": day_high, "day_low": day_low, "day_open": day_open,
+        "prior_close": prior_close, "prior_high": prior_high,
+        "vwap": vwap_approx,
+        "resist_1": resist_1, "resist_2": resist_2,
+        "suporte_1": suporte_1, "suporte_2": suporte_2,
+        "breakout_lvl": breakout_lvl, "falha_lvl": falha_lvl,
+        "long_conserv": {
+            "entrada": entrada_conserv, "stop": stop_conserv,
+            "t1": t1_conserv, "t2": t2_conserv, "t3": t3_conserv, "rr": rr_conserv
+        },
+        "breakout": {
+            "entrada": entrada_break, "stop": stop_break,
+            "t1": t1_break, "t2": t2_break, "rr": rr_break
+        },
+        "failure": {
+            "trigger": falha_trigger, "proj1": proj_1_short,
+            "proj2": proj_2_short, "magnet": magnet_short
+        }
+    }
+
     return jsonify({
         "ticker": ticker, "etf": etf, "sector": setor,
         "price": round(preco, 2), "chg_pct": chg,
@@ -1880,6 +1961,7 @@ def api_lookup():
         "rs_rating": 50,
         "position_shares": pos_shares, "position_exposure": pos_exposure,
         "expectancy": expectancy,
+        "trading_plan": trading_plan,
     })
 
 
