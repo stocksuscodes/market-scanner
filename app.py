@@ -1980,8 +1980,9 @@ def _run_russell_background():
 def handle_exception(e):
     """Garante que erros 500 retornam sempre JSON e não HTML."""
     import traceback
-    app.logger.error(traceback.format_exc())
-    return jsonify({"error": str(e)}), 500
+    tb = traceback.format_exc()
+    app.logger.error(tb)
+    return jsonify({"error": str(e), "traceback": tb[-800:]}), 500
 
 if __name__ == "__main__":
     print("\n══════════════════════════════════════════")
