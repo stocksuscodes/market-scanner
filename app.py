@@ -1724,6 +1724,7 @@ def api_lookup():
     ticker = body.get("ticker", "").upper().strip()
     if not ticker:
         return jsonify({"error": "Ticker em falta"}), 400
+    try:
 
     # Determinar sector/etf
     info = TICKER_SECTOR_MAP.get(ticker, {"etf": "—", "sector": "Outro"})
@@ -1844,6 +1845,10 @@ def api_lookup():
     elif sig_composite <= -12: sig_signal = "STRONG_SELL"
     elif sig_composite <= -5:  sig_signal = "SELL"
     else:                      sig_signal = "NEUTRAL"
+
+    except Exception as ex:
+        import traceback
+        return jsonify({"error": f"Erro interno ao analisar {ticker}: {str(ex)}"}), 200
 
     return jsonify({
         "ticker": ticker, "etf": etf, "sector": setor,
@@ -1976,6 +1981,13 @@ def _run_russell_background():
 # ─────────────────────────────────────────────
 #  MAIN
 # ─────────────────────────────────────────────
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """Garante que erros 500 retornam sempre JSON e não HTML."""
+    import traceback
+    app.logger.error(traceback.format_exc())
+    return jsonify({"error": str(e)}), 500
+
 if __name__ == "__main__":
     print("\n══════════════════════════════════════════")
     print("  MARKET SCANNER PRO — Flask + Alpaca")
