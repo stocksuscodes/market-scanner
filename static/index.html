@@ -1120,11 +1120,11 @@ async function lookupTicker() {
             <button class="d-btn" onclick="window.open('https://www.tradingview.com/chart/?symbol=${s.ticker}','_blank')">↗ TradingView</button>
           </div>
           <div id="lookup-ai-box" style="margin-top:10px;font-size:11px;color:var(--text3);display:none"></div>
-          ${renderTradingPlan(s.trading_plan)}
           ${renderProbPanel(s)}
           ${renderMarkovPanel(s.markov, s.rsi, s.adx)}
           ${renderMinerviniSection(s)}
           ${renderFmpSection(fmpData, s)}
+          ${s.trading_plan ? renderTradingPlan(s.trading_plan) : '<div style="margin-top:10px;padding:10px;border:1px solid #333;border-radius:6px;font-size:10px;color:#666;">⚠ Trading Plan não disponível (dados insuficientes)</div>'}
         </div>`;
     }
   } catch(e) {
