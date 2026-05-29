@@ -943,95 +943,77 @@ function renderTradingPlan(p) {
   if (!p) return '';
   const viesBg  = p.vies_cor==='green'?'#052e16':p.vies_cor==='red'?'#1c0505':'#1c1505';
   const viesClr = p.vies_cor==='green'?'#4ade80':p.vies_cor==='red'?'#f87171':'#fbbf24';
-  const rrC = rr => rr >= 2 ? 'color:#4ade80' : rr >= 1.5 ? 'color:#fbbf24' : 'color:#f87171';
-  return `
-  <div style="margin-top:14px;border-top:1px solid #1e1e1e;padding-top:12px;">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
-      <span style="font-size:10px;font-weight:700;color:#888;letter-spacing:.08em;">PLANO DE TRADING</span>
-      <span style="font-size:9px;padding:2px 8px;border-radius:3px;background:${viesBg};color:${viesClr};font-weight:700;">${p.vies}</span>
-      <span style="font-size:9px;padding:2px 8px;border-radius:3px;background:#111;color:#888;border:1px solid #222;">${p.estrutura}</span>
-    </div>
-    <div style="font-size:9px;color:#666;font-weight:600;letter-spacing:.06em;margin-bottom:6px;">NÍVEIS-CHAVE</div>
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px;">
-      <div style="background:#0d1117;border:1px solid #21262d;border-radius:6px;padding:7px 8px;">
-        <div style="font-size:8px;color:#666;margin-bottom:3px;">Prior Close</div>
-        <div style="font-size:11px;font-weight:600;color:#ccc;">$${p.prior_close}</div>
-      </div>
-      <div style="background:#0d1117;border:1px solid #21262d;border-radius:6px;padding:7px 8px;">
-        <div style="font-size:8px;color:#666;margin-bottom:3px;">VWAP aprox.</div>
-        <div style="font-size:11px;font-weight:600;color:#a78bfa;">$${p.vwap}</div>
-      </div>
-      <div style="background:#0d1117;border:1px solid #f87171;border-radius:6px;padding:7px 8px;">
-        <div style="font-size:8px;color:#666;margin-bottom:3px;">Resistência</div>
-        <div style="font-size:11px;font-weight:600;color:#f87171;">$${p.resist_1}</div>
-      </div>
-      <div style="background:#0d1117;border:1px solid #4ade80;border-radius:6px;padding:7px 8px;">
-        <div style="font-size:8px;color:#666;margin-bottom:3px;">Suporte EMA21</div>
-        <div style="font-size:11px;font-weight:600;color:#4ade80;">$${p.suporte_1}</div>
-      </div>
-      <div style="background:#0d1117;border:1px solid #21262d;border-radius:6px;padding:7px 8px;">
-        <div style="font-size:8px;color:#666;margin-bottom:3px;">Breakout</div>
-        <div style="font-size:11px;font-weight:600;color:#60a5fa;">$${p.breakout_lvl}</div>
-      </div>
-      <div style="background:#0d1117;border:1px solid #21262d;border-radius:6px;padding:7px 8px;">
-        <div style="font-size:8px;color:#666;margin-bottom:3px;">Suporte SMA200</div>
-        <div style="font-size:11px;font-weight:600;color:#86efac;">$${p.suporte_2}</div>
-      </div>
-      <div style="background:#0d1117;border:1px solid #21262d;border-radius:6px;padding:7px 8px;">
-        <div style="font-size:8px;color:#666;margin-bottom:3px;">Nível Falha</div>
-        <div style="font-size:11px;font-weight:600;color:#f87171;">$${p.falha_lvl}</div>
-      </div>
-      <div style="background:#0d1117;border:1px solid #21262d;border-radius:6px;padding:7px 8px;">
-        <div style="font-size:8px;color:#666;margin-bottom:3px;">Day H / L</div>
-        <div style="font-size:10px;font-weight:600;color:#ccc;">$${p.day_high} / $${p.day_low}</div>
-      </div>
-    </div>
-    <div style="font-size:9px;color:#666;font-weight:600;letter-spacing:.06em;margin-bottom:6px;">CENÁRIOS DE EXECUÇÃO</div>
-    <div style="display:flex;flex-direction:column;gap:8px;">
-      <div style="background:#021a0e;border:1px solid #166534;border-radius:8px;padding:10px 12px;">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap;">
-          <span style="font-size:9px;background:#052e16;color:#4ade80;padding:2px 7px;border-radius:3px;font-weight:700;">🟢 LONG CONSERVADOR</span>
-          <span style="font-size:9px;color:#666;">pullback / reclaim</span>
-          <span style="font-size:9px;margin-left:auto;${rrC(p.long_conserv.rr)}">R/R ${p.long_conserv.rr}:1</span>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px;font-size:9px;">
-          <div><div style="color:#555;margin-bottom:2px;">Entrada</div><div style="color:#4ade80;font-weight:600;">$${p.long_conserv.entrada}</div></div>
-          <div><div style="color:#555;margin-bottom:2px;">Stop</div><div style="color:#f87171;font-weight:600;">$${p.long_conserv.stop}</div></div>
-          <div><div style="color:#555;margin-bottom:2px;">T1</div><div style="color:#86efac;font-weight:600;">$${p.long_conserv.t1}</div></div>
-          <div><div style="color:#555;margin-bottom:2px;">T2</div><div style="color:#86efac;font-weight:600;">$${p.long_conserv.t2}</div></div>
-          <div><div style="color:#555;margin-bottom:2px;">T3</div><div style="color:#86efac;font-weight:600;">$${p.long_conserv.t3}</div></div>
-        </div>
-        <div style="margin-top:6px;font-size:9px;color:#555;">Trigger: segurar acima de <span style="color:#4ade80;">$${p.suporte_1}</span> · entrada ideal no reteste da EMA21</div>
-      </div>
-      <div style="background:#00111a;border:1px solid #1d4ed8;border-radius:8px;padding:10px 12px;">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap;">
-          <span style="font-size:9px;background:#0c1a3a;color:#60a5fa;padding:2px 7px;border-radius:3px;font-weight:700;">🔵 BREAKOUT AGRESSIVO</span>
-          <span style="font-size:9px;color:#666;">hold acima da resistência</span>
-          <span style="font-size:9px;margin-left:auto;${rrC(p.breakout.rr)}">R/R ${p.breakout.rr}:1</span>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;font-size:9px;">
-          <div><div style="color:#555;margin-bottom:2px;">Entrada</div><div style="color:#60a5fa;font-weight:600;">$${p.breakout.entrada}</div></div>
-          <div><div style="color:#555;margin-bottom:2px;">Stop</div><div style="color:#f87171;font-weight:600;">$${p.breakout.stop}</div></div>
-          <div><div style="color:#555;margin-bottom:2px;">T1</div><div style="color:#93c5fd;font-weight:600;">$${p.breakout.t1}</div></div>
-          <div><div style="color:#555;margin-bottom:2px;">T2</div><div style="color:#93c5fd;font-weight:600;">$${p.breakout.t2}</div></div>
-        </div>
-        <div style="margin-top:6px;font-size:9px;color:#555;">Entrada: fecho acima de <span style="color:#60a5fa;">$${p.breakout_lvl}</span> com volume confirmado</div>
-      </div>
-      <div style="background:#1a0005;border:1px solid #7f1d1d;border-radius:8px;padding:10px 12px;">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
-          <span style="font-size:9px;background:#2d0a0a;color:#f87171;padding:2px 7px;border-radius:3px;font-weight:700;">🔴 FAILURE / SHORT</span>
-          <span style="font-size:9px;color:#666;">cenário de falha</span>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;font-size:9px;">
-          <div><div style="color:#555;margin-bottom:2px;">Trigger</div><div style="color:#f87171;font-weight:600;">$${p.failure.trigger}</div></div>
-          <div><div style="color:#555;margin-bottom:2px;">Proj. 1</div><div style="color:#fca5a5;font-weight:600;">$${p.failure.proj1}</div></div>
-          <div><div style="color:#555;margin-bottom:2px;">Íman</div><div style="color:#fca5a5;font-weight:600;">$${p.failure.magnet}</div></div>
-        </div>
-        <div style="margin-top:6px;font-size:9px;color:#555;">Se perder <span style="color:#f87171;">$${p.failure.trigger}</span> → bulls perdem controlo → projeção <span style="color:#fca5a5;">$${p.failure.proj1}</span></div>
-      </div>
-    </div>
-  </div>`;
+  function rrColor(rr) { return rr >= 2 ? 'color:#4ade80' : rr >= 1.5 ? 'color:#fbbf24' : 'color:#f87171'; }
+  var h = '';
+  h += '<div style="margin-top:14px;border-top:1px solid #1e1e1e;padding-top:12px;">';
+  h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;">';
+  h += '<span style="font-size:10px;font-weight:700;color:#888;letter-spacing:.08em;">PLANO DE TRADING</span>';
+  h += '<span style="font-size:9px;padding:2px 8px;border-radius:3px;background:'+viesBg+';color:'+viesClr+';font-weight:700;">'+p.vies+'</span>';
+  h += '<span style="font-size:9px;padding:2px 8px;border-radius:3px;background:#111;color:#888;border:1px solid #222;">'+p.estrutura+'</span>';
+  h += '</div>';
+  // Níveis-chave
+  h += '<div style="font-size:9px;color:#666;font-weight:600;letter-spacing:.06em;margin-bottom:6px;">NÍVEIS-CHAVE</div>';
+  h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px;">';
+  h += '<div style="background:#0d1117;border:1px solid #21262d;border-radius:6px;padding:7px 8px;"><div style="font-size:8px;color:#666;margin-bottom:3px;">Prior Close</div><div style="font-size:11px;font-weight:600;color:#ccc;">$'+p.prior_close+'</div></div>';
+  h += '<div style="background:#0d1117;border:1px solid #21262d;border-radius:6px;padding:7px 8px;"><div style="font-size:8px;color:#666;margin-bottom:3px;">VWAP aprox.</div><div style="font-size:11px;font-weight:600;color:#a78bfa;">$'+p.vwap+'</div></div>';
+  h += '<div style="background:#0d1117;border:1px solid #f87171;border-radius:6px;padding:7px 8px;"><div style="font-size:8px;color:#666;margin-bottom:3px;">Resistência</div><div style="font-size:11px;font-weight:600;color:#f87171;">$'+p.resist_1+'</div></div>';
+  h += '<div style="background:#0d1117;border:1px solid #4ade80;border-radius:6px;padding:7px 8px;"><div style="font-size:8px;color:#666;margin-bottom:3px;">Suporte EMA21</div><div style="font-size:11px;font-weight:600;color:#4ade80;">$'+p.suporte_1+'</div></div>';
+  h += '<div style="background:#0d1117;border:1px solid #21262d;border-radius:6px;padding:7px 8px;"><div style="font-size:8px;color:#666;margin-bottom:3px;">Breakout</div><div style="font-size:11px;font-weight:600;color:#60a5fa;">$'+p.breakout_lvl+'</div></div>';
+  h += '<div style="background:#0d1117;border:1px solid #21262d;border-radius:6px;padding:7px 8px;"><div style="font-size:8px;color:#666;margin-bottom:3px;">Suporte SMA200</div><div style="font-size:11px;font-weight:600;color:#86efac;">$'+p.suporte_2+'</div></div>';
+  h += '<div style="background:#0d1117;border:1px solid #21262d;border-radius:6px;padding:7px 8px;"><div style="font-size:8px;color:#666;margin-bottom:3px;">Nível Falha</div><div style="font-size:11px;font-weight:600;color:#f87171;">$'+p.falha_lvl+'</div></div>';
+  h += '<div style="background:#0d1117;border:1px solid #21262d;border-radius:6px;padding:7px 8px;"><div style="font-size:8px;color:#666;margin-bottom:3px;">Day H / L</div><div style="font-size:10px;font-weight:600;color:#ccc;">$'+p.day_high+' / $'+p.day_low+'</div></div>';
+  h += '</div>';
+  // Cenários
+  h += '<div style="font-size:9px;color:#666;font-weight:600;letter-spacing:.06em;margin-bottom:6px;">CENÁRIOS DE EXECUÇÃO</div>';
+  h += '<div style="display:flex;flex-direction:column;gap:8px;">';
+  // Long conservador
+  h += '<div style="background:#021a0e;border:1px solid #166534;border-radius:8px;padding:10px 12px;">';
+  h += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap;">';
+  h += '<span style="font-size:9px;background:#052e16;color:#4ade80;padding:2px 7px;border-radius:3px;font-weight:700;">🟢 LONG CONSERVADOR</span>';
+  h += '<span style="font-size:9px;color:#666;">pullback / reclaim</span>';
+  h += '<span style="font-size:9px;margin-left:auto;'+rrColor(p.long_conserv.rr)+'">R/R '+p.long_conserv.rr+':1</span>';
+  h += '</div>';
+  h += '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px;font-size:9px;">';
+  h += '<div><div style="color:#555;margin-bottom:2px;">Entrada</div><div style="color:#4ade80;font-weight:600;">$'+p.long_conserv.entrada+'</div></div>';
+  h += '<div><div style="color:#555;margin-bottom:2px;">Stop</div><div style="color:#f87171;font-weight:600;">$'+p.long_conserv.stop+'</div></div>';
+  h += '<div><div style="color:#555;margin-bottom:2px;">T1</div><div style="color:#86efac;font-weight:600;">$'+p.long_conserv.t1+'</div></div>';
+  h += '<div><div style="color:#555;margin-bottom:2px;">T2</div><div style="color:#86efac;font-weight:600;">$'+p.long_conserv.t2+'</div></div>';
+  h += '<div><div style="color:#555;margin-bottom:2px;">T3</div><div style="color:#86efac;font-weight:600;">$'+p.long_conserv.t3+'</div></div>';
+  h += '</div>';
+  h += '<div style="margin-top:6px;font-size:9px;color:#555;">Trigger: segurar acima de <span style="color:#4ade80;">$'+p.suporte_1+'</span> · entrada ideal no reteste da EMA21</div>';
+  h += '</div>';
+  // Breakout agressivo
+  h += '<div style="background:#00111a;border:1px solid #1d4ed8;border-radius:8px;padding:10px 12px;">';
+  h += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap;">';
+  h += '<span style="font-size:9px;background:#0c1a3a;color:#60a5fa;padding:2px 7px;border-radius:3px;font-weight:700;">🔵 BREAKOUT AGRESSIVO</span>';
+  h += '<span style="font-size:9px;color:#666;">hold acima da resistência</span>';
+  h += '<span style="font-size:9px;margin-left:auto;'+rrColor(p.breakout.rr)+'">R/R '+p.breakout.rr+':1</span>';
+  h += '</div>';
+  h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;font-size:9px;">';
+  h += '<div><div style="color:#555;margin-bottom:2px;">Entrada</div><div style="color:#60a5fa;font-weight:600;">$'+p.breakout.entrada+'</div></div>';
+  h += '<div><div style="color:#555;margin-bottom:2px;">Stop</div><div style="color:#f87171;font-weight:600;">$'+p.breakout.stop+'</div></div>';
+  h += '<div><div style="color:#555;margin-bottom:2px;">T1</div><div style="color:#93c5fd;font-weight:600;">$'+p.breakout.t1+'</div></div>';
+  h += '<div><div style="color:#555;margin-bottom:2px;">T2</div><div style="color:#93c5fd;font-weight:600;">$'+p.breakout.t2+'</div></div>';
+  h += '</div>';
+  h += '<div style="margin-top:6px;font-size:9px;color:#555;">Entrada: fecho acima de <span style="color:#60a5fa;">$'+p.breakout_lvl+'</span> com volume confirmado</div>';
+  h += '</div>';
+  // Failure / Short
+  h += '<div style="background:#1a0005;border:1px solid #7f1d1d;border-radius:8px;padding:10px 12px;">';
+  h += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">';
+  h += '<span style="font-size:9px;background:#2d0a0a;color:#f87171;padding:2px 7px;border-radius:3px;font-weight:700;">🔴 FAILURE / SHORT</span>';
+  h += '<span style="font-size:9px;color:#666;">cenário de falha</span>';
+  h += '</div>';
+  h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;font-size:9px;">';
+  h += '<div><div style="color:#555;margin-bottom:2px;">Trigger</div><div style="color:#f87171;font-weight:600;">$'+p.failure.trigger+'</div></div>';
+  h += '<div><div style="color:#555;margin-bottom:2px;">Proj. 1</div><div style="color:#fca5a5;font-weight:600;">$'+p.failure.proj1+'</div></div>';
+  h += '<div><div style="color:#555;margin-bottom:2px;">Íman</div><div style="color:#fca5a5;font-weight:600;">$'+p.failure.magnet+'</div></div>';
+  h += '</div>';
+  h += '<div style="margin-top:6px;font-size:9px;color:#555;">Se perder <span style="color:#f87171;">$'+p.failure.trigger+'</span> → bulls perdem controlo → projeção <span style="color:#fca5a5;">$'+p.failure.proj1+'</span></div>';
+  h += '</div>';
+  h += '</div></div>';
+  return h;
 }
+
 
 async function lookupTicker() {
   const input = document.getElementById('lookup-input');
