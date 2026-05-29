@@ -1079,8 +1079,8 @@ async function lookupTicker() {
             t2: Math.round((bl + atr*4)*100)/100,
             rr: Math.round((bl + atr*2 - bl) / Math.max(bl - sb, 0.01) * 10)/10 },
           failure: { trigger: fl,
-            proj1: Math.round(sma200*100)/100,
-            proj2: Math.round((sma200 - atr*2)*100)/100,
+            proj1: Math.round((pr - atr*3)*100)/100,
+            proj2: Math.round((pr - atr*5)*100)/100,
             magnet: Math.round(Math.min(sma200 - atr*2, pr*0.85)*100)/100 }
         };
       }
