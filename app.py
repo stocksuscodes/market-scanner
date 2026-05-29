@@ -483,7 +483,6 @@ def obter_preco_realtime(tickers: list) -> dict:
         r = requests.get(f"{ALPACA_BASE_URL}/stocks/snapshots",
                          headers=ALPACA_HEADERS,
                          params={"symbols": ",".join(tickers), "feed": "iex"}, timeout=10)
-        r.raise_for_status()
         precos = {}
         for sym, snap in r.json().items():
             lp = snap.get("latestTrade", {}).get("p") or \
