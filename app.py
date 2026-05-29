@@ -1577,7 +1577,7 @@ def api_preco(ticker):
 
 @app.route("/api/ai-analysis", methods=["POST"])
 def api_ai_analysis():
-    ANTHROPIC_KEY = os.getenv("ANTHROPIC_API_KEY", "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")
+    ANTHROPIC_KEY = os.getenv("ANTHROPIC_API_KEY", "")
     body   = request.get_json() or {}
     prompt = body.get("prompt", "")
     if not ANTHROPIC_KEY:
