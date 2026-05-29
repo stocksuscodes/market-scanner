@@ -1596,7 +1596,9 @@ def api_ai_analysis():
         text = "".join(b.get("text","") for b in r.json().get("content",[]))
         return jsonify({"analysis": text})
     except Exception as e:
-        return jsonify({"analysis": f"Erro IA: {e}"}), 200
+        import traceback
+        return jsonify({"analysis": f"Erro IA [{type(e).__name__}]: {e}
+{traceback.format_exc()[-300:]}"}), 200
 
 
 
