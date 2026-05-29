@@ -464,7 +464,7 @@ def obter_dados_alpaca(ticker: str, dias: int = 260) -> pd.DataFrame:
     try:
         r = requests.get(f"{ALPACA_BASE_URL}/stocks/{ticker}/bars",
                          headers=ALPACA_HEADERS, params=params, timeout=10)
-        r.raise_for_status()
+        if r.status_code != 200: return jsonify({"analysis": "Erro API: " + str(r.status_code) + " — " + r.json().get("error",{}).get("message",r.text[:100])}), 200
         bars = r.json().get("bars", [])
         if not bars:
             return pd.DataFrame()
@@ -1587,7 +1587,7 @@ def api_ai_analysis():
             "https://api.anthropic.com/v1/messages",
             headers={"x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01",
                      "Content-Type": "application/json"},
-            json={"model": "claude-3-haiku-20240307", "max_tokens": 500,
+            json={"model": "claude-haiku-4-5-20251001", "max_tokens": 500,
                   "messages": [{"role": "user", "content": prompt}]},
             timeout=30,
         )
@@ -2081,7 +2081,7 @@ def debug_env():
         try:
             r = requests.post("https://api.anthropic.com/v1/messages",
                 headers={"x-api-key": key, "anthropic-version": "2023-06-01", "Content-Type": "application/json"},
-                json={"model": "claude-3-haiku-20240307", "max_tokens": 10, "messages": [{"role": "user", "content": "hi"}]},
+                json={"model": "claude-haiku-4-5-20251001", "max_tokens": 10, "messages": [{"role": "user", "content": "hi"}]},
                 timeout=10)
             result["api_status"] = r.status_code
             result["api_response"] = r.text[:200]
