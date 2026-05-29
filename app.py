@@ -1591,7 +1591,9 @@ def api_ai_analysis():
                   "messages": [{"role": "user", "content": prompt}]},
             timeout=30,
         )
-        r.raise_for_status()
+        if r.status_code != 200:
+            err = r.json().get('error',{}).get('message', r.text[:100])
+            return jsonify({"analysis": f"Erro API {r.status_code}: {err}"}), 200
         text = "".join(b.get("text","") for b in r.json().get("content",[]))
         return jsonify({"analysis": text})
     except Exception as e:
