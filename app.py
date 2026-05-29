@@ -1587,7 +1587,7 @@ def api_ai_analysis():
             "https://api.anthropic.com/v1/messages",
             headers={"x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01",
                      "Content-Type": "application/json"},
-            json={"model": "claude-haiku-4-5-20251001", "max_tokens": 500,
+            json={"model": "claude-3-haiku-20240307", "max_tokens": 500,
                   "messages": [{"role": "user", "content": prompt}]},
             timeout=30,
         )
