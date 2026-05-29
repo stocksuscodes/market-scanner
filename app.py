@@ -1,7 +1,5 @@
 """
 =============================================================
-  v2.1 — Trading Plan Card
-=============================================================
   MARKET SCANNER PRO — Flask + Alpaca + SLJ + Wyckoff + Markov
 =============================================================
   Integra:
@@ -464,7 +462,7 @@ def obter_dados_alpaca(ticker: str, dias: int = 260) -> pd.DataFrame:
     try:
         r = requests.get(f"{ALPACA_BASE_URL}/stocks/{ticker}/bars",
                          headers=ALPACA_HEADERS, params=params, timeout=10)
-        if r.status_code != 200: return jsonify({"analysis": "Erro API: " + str(r.status_code) + " — " + r.json().get("error",{}).get("message",r.text[:100])}), 200
+        r.raise_for_status()
         bars = r.json().get("bars", [])
         if not bars:
             return pd.DataFrame()
@@ -483,6 +481,7 @@ def obter_preco_realtime(tickers: list) -> dict:
         r = requests.get(f"{ALPACA_BASE_URL}/stocks/snapshots",
                          headers=ALPACA_HEADERS,
                          params={"symbols": ",".join(tickers), "feed": "iex"}, timeout=10)
+        r.raise_for_status()
         precos = {}
         for sym, snap in r.json().items():
             lp = snap.get("latestTrade", {}).get("p") or \
@@ -1397,11 +1396,7 @@ def mercado_favoravel() -> dict:
 
 @app.route("/")
 def index():
-    resp = app.make_response(app.send_static_file("index.html"))
-    resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-    resp.headers["Pragma"] = "no-cache"
-    resp.headers["Expires"] = "0"
-    return resp
+    return app.send_static_file("index.html")
 
 @app.route("/api/sectores", methods=["GET"])
 def api_sectores():
@@ -1590,14 +1585,11 @@ def api_ai_analysis():
                   "messages": [{"role": "user", "content": prompt}]},
             timeout=30,
         )
-        if r.status_code != 200:
-            err = r.json().get('error',{}).get('message', r.text[:100])
-            return jsonify({"analysis": f"Erro API {r.status_code}: {err}"}), 200
+        r.raise_for_status()
         text = "".join(b.get("text","") for b in r.json().get("content",[]))
         return jsonify({"analysis": text})
     except Exception as e:
-        import traceback; tb = traceback.format_exc()[-200:]
-        return jsonify({"analysis": "Erro IA [" + type(e).__name__ + "]: " + str(e) + " | " + tb}), 200
+        return jsonify({"analysis": f"Erro IA: {e}"}), 200
 
 
 
@@ -1812,9 +1804,8 @@ def api_lookup():
     score_100            = calc_score_100(total, rs_score_val, atr_comp, mkt["bullish"],
                                           vol_r, adx, fase, slj, ms_score)
     # Sector rotation penalty — se sector não está no top 5 do ranking, penaliza 10 pts
-    # Penalização sectorial: top5_sectors é lista de nomes de sectores
-    top5_sector_names = _cache.get("top5_sectors") or []
-    if top5_sector_names and setor and setor not in top5_sector_names:
+    top5_etfs = [s.get("etf","") for s in (_cache.get("top5_sectors") or [])]
+    if etf and top5_etfs and etf not in top5_etfs:
         score_100 = max(0, score_100 - 10)
     # VCP + Volume dry-up
     vcp, vcp_n, vcp_t = detect_vcp(df)
@@ -1854,87 +1845,6 @@ def api_lookup():
     elif sig_composite <= -5:  sig_signal = "SELL"
     else:                      sig_signal = "NEUTRAL"
 
-    # ── TRADING PLAN: níveis-chave + 3 cenários ──
-    # Níveis-chave a partir dos dados diários
-    day_high    = round(float(df["High"].iloc[-1]), 2)
-    day_low     = round(float(df["Low"].iloc[-1]), 2)
-    day_open    = round(float(df["Open"].iloc[-1]), 2)
-    prior_close = round(float(df["Close"].iloc[-2]), 2) if len(df) >= 2 else round(preco, 2)
-    prior_high  = round(float(df["High"].iloc[-2]), 2)  if len(df) >= 2 else round(preco, 2)
-    vwap_approx = round((day_high + day_low + preco) / 3, 2)
-
-    # Resistências e suportes técnicos
-    resist_1    = round(max(day_high, prior_high), 2)                      # resistência imediata
-    resist_2    = round(max(resist_1, preco * 1.05), 2)                    # resistência secundária (5% acima)
-    suporte_1   = round(ema21, 2)                                           # suporte imediato (EMA21)
-    suporte_2   = round(sma200, 2)                                          # suporte principal (SMA200)
-    breakout_lvl= round(resist_1 * 1.005, 2)                               # breakout = 0.5% acima da resistência
-    falha_lvl   = round(suporte_1 - atr * 0.5, 2)                         # nível de falha estrutural
-
-    # Viés técnico
-    if preco > sma200 and preco > ema21 and rsi > 50 and adx > 20:
-        vies = "Bullish"
-        vies_cor = "green"
-    elif preco < sma200 or (rsi < 40 and adx > 20):
-        vies = "Bearish"
-        vies_cor = "red"
-    else:
-        vies = "Neutro"
-        vies_cor = "amber"
-
-    # Cenário 1 — Long conservador (pullback/reclaim)
-    entrada_conserv = round(suporte_1 * 1.005, 2)   # comprar 0.5% acima da EMA21
-    stop_conserv    = round(suporte_1 - atr, 2)
-    t1_conserv      = round(resist_1, 2)
-    t2_conserv      = round(resist_1 + atr * 2, 2)
-    t3_conserv      = round(resist_1 + atr * 4, 2)
-    rr_conserv      = round((t1_conserv - entrada_conserv) / max(entrada_conserv - stop_conserv, 0.01), 1)
-
-    # Cenário 2 — Breakout agressivo
-    entrada_break   = round(breakout_lvl, 2)
-    stop_break      = round(resist_1 - atr * 0.5, 2)  # stop abaixo do breakout
-    t1_break        = round(entrada_break + atr * 2, 2)
-    t2_break        = round(entrada_break + atr * 4, 2)
-    rr_break        = round((t1_break - entrada_break) / max(entrada_break - stop_break, 0.01), 1)
-
-    # Cenário 3 — Failure/Short
-    falha_trigger   = round(falha_lvl, 2)
-    proj_1_short    = round(suporte_2, 2)                                  # primeiro alvo baixista: SMA200
-    proj_2_short    = round(suporte_2 - atr * 2, 2)                       # segundo alvo baixista
-    magnet_short    = round(min(proj_2_short, preco * 0.85), 2)            # íman: -15%
-
-    # Estrutura de preço
-    if preco > resist_1 * 0.99:
-        estrutura = "Extensão"
-    elif preco > suporte_1 * 0.98 and preco < resist_1 * 1.01:
-        estrutura = "Compressão" if atr_comp else "Pullback"
-    elif preco <= suporte_1 * 1.005 and preco >= suporte_1 * 0.995:
-        estrutura = "Reclaim"
-    else:
-        estrutura = "Indefinida"
-
-    trading_plan = {
-        "vies": vies, "vies_cor": vies_cor, "estrutura": estrutura,
-        "day_high": day_high, "day_low": day_low, "day_open": day_open,
-        "prior_close": prior_close, "prior_high": prior_high,
-        "vwap": vwap_approx,
-        "resist_1": resist_1, "resist_2": resist_2,
-        "suporte_1": suporte_1, "suporte_2": suporte_2,
-        "breakout_lvl": breakout_lvl, "falha_lvl": falha_lvl,
-        "long_conserv": {
-            "entrada": entrada_conserv, "stop": stop_conserv,
-            "t1": t1_conserv, "t2": t2_conserv, "t3": t3_conserv, "rr": rr_conserv
-        },
-        "breakout": {
-            "entrada": entrada_break, "stop": stop_break,
-            "t1": t1_break, "t2": t2_break, "rr": rr_break
-        },
-        "failure": {
-            "trigger": falha_trigger, "proj1": proj_1_short,
-            "proj2": proj_2_short, "magnet": magnet_short
-        }
-    }
-
     return jsonify({
         "ticker": ticker, "etf": etf, "sector": setor,
         "price": round(preco, 2), "chg_pct": chg,
@@ -1969,7 +1879,6 @@ def api_lookup():
         "rs_rating": 50,
         "position_shares": pos_shares, "position_exposure": pos_exposure,
         "expectancy": expectancy,
-        "trading_plan": trading_plan,
     })
 
 
@@ -2067,30 +1976,6 @@ def _run_russell_background():
 # ─────────────────────────────────────────────
 #  MAIN
 # ─────────────────────────────────────────────
-@app.errorhandler(Exception)
-def handle_exception(e):
-    """Garante que erros 500 retornam sempre JSON e não HTML."""
-    import traceback
-    tb = traceback.format_exc()
-    app.logger.error(tb)
-    return jsonify({"error": str(e), "traceback": tb[-800:]}), 500
-
-@app.route("/api/debug/env", methods=["GET"])
-def debug_env():
-    key = os.getenv("ANTHROPIC_API_KEY", "")
-    result = {"key_set": bool(key), "key_prefix": key[:15] if key else "EMPTY", "key_len": len(key)}
-    if key:
-        try:
-            r = requests.post("https://api.anthropic.com/v1/messages",
-                headers={"x-api-key": key, "anthropic-version": "2023-06-01", "Content-Type": "application/json"},
-                json={"model": "claude-haiku-4-5-20251001", "max_tokens": 10, "messages": [{"role": "user", "content": "hi"}]},
-                timeout=10)
-            result["api_status"] = r.status_code
-            result["api_response"] = r.text[:200]
-        except Exception as e:
-            result["api_error"] = str(e)
-    return jsonify(result)
-
 if __name__ == "__main__":
     print("\n══════════════════════════════════════════")
     print("  MARKET SCANNER PRO — Flask + Alpaca")
