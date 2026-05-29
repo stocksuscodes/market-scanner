@@ -1803,8 +1803,8 @@ def api_lookup():
     score_100            = calc_score_100(total, rs_score_val, atr_comp, mkt["bullish"],
                                           vol_r, adx, fase, slj, ms_score)
     # Sector rotation penalty — se sector não está no top 5 do ranking, penaliza 10 pts
-    top5_etfs = [s.get("etf","") for s in (_cache.get("top5_sectors") or [])]
-    if etf and top5_etfs and etf not in top5_etfs:
+    top5_sector_names = _cache.get("top5_sectors") or []
+    if top5_sector_names and setor and setor not in top5_sector_names:
         score_100 = max(0, score_100 - 10)
     # VCP + Volume dry-up
     vcp, vcp_n, vcp_t = detect_vcp(df)
