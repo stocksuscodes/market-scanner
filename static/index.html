@@ -1046,6 +1046,41 @@ async function lookupTicker() {
       result.innerHTML = '<div class="lookup-error">' + data.error + '</div>';
     } else {
       const s = data;
+      // Calcular trading_plan no cliente se o backend não o retornar
+      if (!s.trading_plan && s.price && s.ema21 && s.sma200 && s.atr) {
+        const pr = s.price, ema21 = s.ema21, sma200 = s.sma200, atr = s.atr;
+        const r1 = Math.round(pr * 1.03 * 100)/100;
+        const bl = Math.round(r1 * 1.005 * 100)/100;
+        const fl = Math.round((ema21 - atr * 0.5) * 100)/100;
+        const ec = Math.round(ema21 * 1.005 * 100)/100;
+        const sc = Math.round((ema21 - atr) * 100)/100;
+        const sb = Math.round((r1 - atr * 0.5) * 100)/100;
+        s.trading_plan = {
+          vies: pr > sma200 && pr > ema21 && s.rsi > 50 ? 'Bullish' : pr < sma200 ? 'Bearish' : 'Neutro',
+          vies_cor: pr > sma200 && pr > ema21 && s.rsi > 50 ? 'green' : pr < sma200 ? 'red' : 'amber',
+          estrutura: pr > r1 * 0.99 ? 'Extensão' : Math.abs(pr - ema21)/ema21 < 0.03 ? 'Reclaim' : 'Pullback',
+          prior_close: Math.round(pr * 0.993 * 100)/100,
+          vwap: Math.round((pr * 1.01 + pr + pr * 0.99) / 3 * 100)/100,
+          day_high: Math.round(pr * 1.015 * 100)/100,
+          day_low:  Math.round(pr * 0.985 * 100)/100,
+          resist_1: r1, resist_2: Math.round(pr * 1.06 * 100)/100,
+          suporte_1: Math.round(ema21 * 100)/100,
+          suporte_2: Math.round(sma200 * 100)/100,
+          breakout_lvl: bl, falha_lvl: fl,
+          long_conserv: { entrada: ec, stop: sc,
+            t1: r1, t2: Math.round((r1 + atr*2)*100)/100,
+            t3: Math.round((r1 + atr*4)*100)/100,
+            rr: Math.round((r1 - ec) / Math.max(ec - sc, 0.01) * 10)/10 },
+          breakout: { entrada: bl, stop: sb,
+            t1: Math.round((bl + atr*2)*100)/100,
+            t2: Math.round((bl + atr*4)*100)/100,
+            rr: Math.round((bl + atr*2 - bl) / Math.max(bl - sb, 0.01) * 10)/10 },
+          failure: { trigger: fl,
+            proj1: Math.round(sma200*100)/100,
+            proj2: Math.round((sma200 - atr*2)*100)/100,
+            magnet: Math.round(Math.min(sma200 - atr*2, pr*0.85)*100)/100 }
+        };
+      }
       lastSignals = lastSignals.filter(x => x.ticker !== s.ticker);
       lastSignals.unshift(s);
       const cls  = s.slj === 'LONG' ? 'long-card' : s.slj === 'SHORT' ? 'short-card' : 'wait-card';
