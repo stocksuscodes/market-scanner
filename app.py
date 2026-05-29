@@ -2076,11 +2076,18 @@ def handle_exception(e):
 @app.route("/api/debug/env", methods=["GET"])
 def debug_env():
     key = os.getenv("ANTHROPIC_API_KEY", "")
-    return jsonify({
-        "key_set": bool(key),
-        "key_prefix": key[:15] if key else "EMPTY",
-        "key_len": len(key)
-    })
+    result = {"key_set": bool(key), "key_prefix": key[:15] if key else "EMPTY", "key_len": len(key)}
+    if key:
+        try:
+            r = requests.post("https://api.anthropic.com/v1/messages",
+                headers={"x-api-key": key, "anthropic-version": "2023-06-01", "Content-Type": "application/json"},
+                json={"model": "claude-3-haiku-20240307", "max_tokens": 10, "messages": [{"role": "user", "content": "hi"}]},
+                timeout=10)
+            result["api_status"] = r.status_code
+            result["api_response"] = r.text[:200]
+        except Exception as e:
+            result["api_error"] = str(e)
+    return jsonify(result)
 
 if __name__ == "__main__":
     print("\n══════════════════════════════════════════")
