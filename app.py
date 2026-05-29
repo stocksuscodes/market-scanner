@@ -2073,6 +2073,15 @@ def handle_exception(e):
     app.logger.error(tb)
     return jsonify({"error": str(e), "traceback": tb[-800:]}), 500
 
+@app.route("/api/debug/env", methods=["GET"])
+def debug_env():
+    key = os.getenv("ANTHROPIC_API_KEY", "")
+    return jsonify({
+        "key_set": bool(key),
+        "key_prefix": key[:15] if key else "EMPTY",
+        "key_len": len(key)
+    })
+
 if __name__ == "__main__":
     print("\n══════════════════════════════════════════")
     print("  MARKET SCANNER PRO — Flask + Alpaca")
