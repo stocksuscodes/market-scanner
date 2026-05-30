@@ -61,6 +61,7 @@ def load_scan_history():
     return []
 
 from flask_cors import CORS
+from squeeze_overlay import enrich_signal_with_squeeze
 
 warnings.filterwarnings("ignore")
 
@@ -196,7 +197,7 @@ def prefiltro_russell(tickers: list, p_min: float = 5, p_max: float = 500,
             time.sleep(0.3)
         except Exception as e:
             if "429" in str(e):
-                time.sleep(2.0)  # Rate limit — espera mais
+                time.sleep(10.0)  # Rate limit — espera mais
             continue
     return passed
 
@@ -246,7 +247,7 @@ def _run_full_scan_background():
             )
             if resultado:
                 sinais.append(resultado)
-            time.sleep(0.15)
+            time.sleep(0.5)
 
         # Step 3: Sort by Score SLJ descending within each top sector
         sinais.sort(key=lambda x: (-(x.get("score_100") or 0), -(x.get("score_total") or 0), -x["rr"]))
@@ -1360,7 +1361,7 @@ def calcular_ranking(top_n: int = 5):
             perf = round((float(df["Close"].iloc[-1]) - float(df["Close"].iloc[-10]))
                          / float(df["Close"].iloc[-10]) * 100, 2)
         ranking.append({**sec, "perf": perf})
-        time.sleep(0.1)
+        time.sleep(0.4)
     ranking_sorted = sorted(ranking, key=lambda x: x["perf"], reverse=True)
     # Tag each sector with its rank position
     for i, sec in enumerate(ranking_sorted):
@@ -1428,7 +1429,7 @@ def api_ranking_historico():
     for sec in SECTORES:
         df = obter_dados_alpaca(sec["etf"], 45)
         dados_etf[sec["etf"]] = {"df": df, "nome": sec["nome"], "etf": sec["etf"], "tickers": sec["tickers"]}
-        time.sleep(0.05)
+        time.sleep(0.3)
 
     # Calcular ranking para cada semana
     for sem in semanas:
@@ -1540,7 +1541,7 @@ def api_scan():
         resultado = analisar_ativo(t, etf, sec, p_min, p_max, adx_min, rsi_max)
         if resultado:
             sinais.append(resultado)
-        time.sleep(0.15)
+        time.sleep(0.5)
 
     # Sort by sector rank first, then by SLJ score within each sector
     sector_rank = {s["nome"]: s["rank"] for s in ranking}
@@ -1933,7 +1934,7 @@ def api_scan_russell():
         )
         if resultado:
             sinais.append(resultado)
-        time.sleep(0.15)
+        time.sleep(0.5)
 
     sinais.sort(key=lambda x: (-(x.get("score_100") or 0), -(x.get("score_total") or 0), -x["rr"]))
     return jsonify({"sinais": sinais, "total": len(tickers_filtrados),
@@ -1975,6 +1976,17 @@ def _run_russell_background():
 # ─────────────────────────────────────────────
 #  MAIN
 # ─────────────────────────────────────────────
+
+@app.route("/api/squeeze/candidates", methods=["GET"])
+def squeeze_candidates():
+    from pathlib import Path
+    import json
+    f = Path(__file__).parent / "squeeze_candidates.json"
+    if f.exists():
+        with open(f, "r", encoding="utf-8") as fp:
+            return jsonify(json.load(fp))
+    return jsonify({"candidates": [], "timestamp": None, "total": 0})
+
 if __name__ == "__main__":
     print("\n══════════════════════════════════════════")
     print("  MARKET SCANNER PRO — Flask + Alpaca")
@@ -1986,3 +1998,7 @@ if __name__ == "__main__":
         print("  [RAILWAY] A iniciar cache em background...")
         threading.Thread(target=_schedule_cache_refresh, daemon=True).start()
     app.run(debug=False, host="0.0.0.0", port=int(os.getenv("PORT", 5000)))
+
+
+
+

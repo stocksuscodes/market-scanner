@@ -1,0 +1,5 @@
+﻿content = open('app.py', 'r', encoding='utf-8').read()
+content = content.replace('        sinais = [enrich_signal_with_squeeze(s) for s in sinais]\n', '')
+content = content.replace('    sinais = [enrich_signal_with_squeeze(s) for s in sinais]\n', '')
+open('app.py', 'w', encoding='utf-8').write(content)
+print('FEITO - enrich removido do scan principal')

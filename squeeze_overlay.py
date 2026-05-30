@@ -1,0 +1,273 @@
+"""
+=============================================================
+  SQUEEZE OVERLAY — Market Scanner PRO
+=============================================================
+  Fontes:
+  - iborrowdesk.com  → borrow fee, shares available
+  - yfinance         → short float %, days to cover, shares short
+  - Alpaca           → preço, volume (já no scanner principal)
+
+  Score Squeeze (0-100):
+  - Short Float %     → até 40 pts
+  - Borrow Fee        → até 20 pts
+  - Days to Cover     → até 20 pts
+  - Shares Available  → até 20 pts
+=============================================================
+"""
+
+import requests
+import yfinance as yf
+import time
+
+IBORROWDESK_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+}
+
+# Cache para não repetir chamadas no mesmo scan
+_cache = {}
+CACHE_TTL = 3600  # 1 hora
+
+
+def _get_iborrowdesk(ticker: str) -> dict:
+    """Vai buscar borrow fee e shares available ao iborrowdesk."""
+    try:
+        url = f"https://iborrowdesk.com/api/ticker/{ticker}"
+        r = requests.get(url, headers=IBORROWDESK_HEADERS, timeout=10)
+        if r.status_code == 200:
+            data = r.json()
+            daily = data.get("daily", [])
+            if daily:
+                latest = daily[-1]
+                return {
+                    "borrow_fee":  latest.get("fee", None),
+                    "available":   latest.get("available", None),
+                    "date":        latest.get("date", None),
+                }
+    except Exception as e:
+        print(f"  [SQUEEZE] iborrowdesk erro {ticker}: {e}", flush=True)
+    return {"borrow_fee": None, "available": None, "date": None}
+
+
+def _get_yfinance_short(ticker: str) -> dict:
+    """Vai buscar short float %, days to cover e shares short ao yfinance."""
+    try:
+        t = yf.Ticker(ticker)
+        info = t.info
+        return {
+            "short_float_pct": info.get("shortPercentOfFloat"),  # ex: 0.329 = 32.9%
+            "days_to_cover":   info.get("shortRatio"),
+            "shares_short":    info.get("sharesShort"),
+        }
+    except Exception as e:
+        print(f"  [SQUEEZE] yfinance erro {ticker}: {e}", flush=True)
+    return {"short_float_pct": None, "days_to_cover": None, "shares_short": None}
+
+
+def calc_squeeze_score(ticker: str, use_cache: bool = True) -> dict:
+    """
+    Calcula o score de squeeze para um ticker.
+    Retorna dict com todos os dados e score final (0-100).
+    """
+    now = time.time()
+
+    # Cache
+    if use_cache and ticker in _cache:
+        cached_time, cached_data = _cache[ticker]
+        if now - cached_time < CACHE_TTL:
+            return cached_data
+
+    # Recolher dados
+    iborrow = _get_iborrowdesk(ticker)
+    yfin    = _get_yfinance_short(ticker)
+
+    short_float_pct = yfin["short_float_pct"]   # 0.0 a 1.0+
+    days_to_cover   = yfin["days_to_cover"]      # dias
+    shares_short    = yfin["shares_short"]
+    borrow_fee      = iborrow["borrow_fee"]      # % anual
+    available       = iborrow["available"]        # nº shares
+
+    # ── SCORING ──────────────────────────────────────────
+
+    score = 0
+    flags = []
+
+    # 1. Short Float % → até 40 pts
+    sf_score = 0
+    if short_float_pct is not None:
+        sf_pct = short_float_pct * 100  # converter para %
+        if sf_pct >= 40:
+            sf_score = 40
+            flags.append("SI_EXTREMO")
+        elif sf_pct >= 25:
+            sf_score = 30
+            flags.append("SI_ALTO")
+        elif sf_pct >= 15:
+            sf_score = 20
+            flags.append("SI_MODERADO")
+        elif sf_pct >= 10:
+            sf_score = 10
+        score += sf_score
+
+    # 2. Borrow Fee → até 20 pts
+    bf_score = 0
+    if borrow_fee is not None:
+        if borrow_fee >= 100:
+            bf_score = 20
+            flags.append("BORROW_EXTREMO")
+        elif borrow_fee >= 50:
+            bf_score = 15
+            flags.append("BORROW_ALTO")
+        elif borrow_fee >= 20:
+            bf_score = 10
+            flags.append("BORROW_ELEVADO")
+        elif borrow_fee >= 5:
+            bf_score = 5
+        score += bf_score
+
+    # 3. Days to Cover → até 20 pts
+    dtc_score = 0
+    if days_to_cover is not None:
+        if days_to_cover >= 10:
+            dtc_score = 20
+            flags.append("DTC_CRITICO")
+        elif days_to_cover >= 5:
+            dtc_score = 15
+            flags.append("DTC_ALTO")
+        elif days_to_cover >= 3:
+            dtc_score = 10
+        elif days_to_cover >= 1:
+            dtc_score = 5
+        score += dtc_score
+
+    # 4. Shares Available (inverso) → até 20 pts
+    # Quanto menos disponível, maior a pressão
+    av_score = 0
+    if available is not None:
+        if available <= 100_000:
+            av_score = 20
+            flags.append("AVAILABLE_CRITICO")
+        elif available <= 500_000:
+            av_score = 15
+            flags.append("AVAILABLE_BAIXO")
+        elif available <= 1_000_000:
+            av_score = 10
+        elif available <= 5_000_000:
+            av_score = 5
+        score += av_score
+
+    # ── CLASSIFICAÇÃO FINAL ───────────────────────────────
+    if score >= 70:
+        nivel = "🔴 SQUEEZE IMINENTE"
+    elif score >= 50:
+        nivel = "🟠 PRESSÃO ALTA"
+    elif score >= 30:
+        nivel = "🟡 PRESSÃO MODERADA"
+    else:
+        nivel = "⚪ PRESSÃO BAIXA"
+
+    result = {
+        "ticker":          ticker,
+        "squeeze_score":   score,
+        "squeeze_nivel":   nivel,
+        "short_float_pct": round(short_float_pct * 100, 2) if short_float_pct else None,
+        "days_to_cover":   days_to_cover,
+        "shares_short":    shares_short,
+        "borrow_fee":      borrow_fee,
+        "available":       available,
+        "iborrow_date":    iborrow["date"],
+        "flags":           flags,
+    }
+
+    # Guardar cache
+    _cache[ticker] = (now, result)
+
+    return result
+
+
+def enrich_signal_with_squeeze(signal: dict, min_short_float: float = 10.0) -> dict:
+    """
+    Enriquece um sinal existente do scanner com dados de squeeze.
+    Só corre se o ticker passou os filtros base do scanner.
+
+    Args:
+        signal: dict do scanner com 'ticker', 'score_100', etc.
+        min_short_float: % mínimo de short float para considerar (default 10%)
+
+    Returns:
+        signal enriquecido com campos squeeze_*
+    """
+    ticker = signal.get("ticker", "")
+    if not ticker:
+        return signal
+
+    try:
+        sq = calc_squeeze_score(ticker)
+
+        # Só adiciona se tiver short float mínimo
+        sf = sq.get("short_float_pct")
+        if sf is None or sf < min_short_float:
+            signal["squeeze_score"] = 0
+            signal["squeeze_nivel"] = "⚪ SEM DADOS"
+            signal["short_float_pct"] = sf
+            signal["borrow_fee"] = sq.get("borrow_fee")
+            signal["days_to_cover"] = sq.get("days_to_cover")
+            return signal
+
+        signal["squeeze_score"]   = sq["squeeze_score"]
+        signal["squeeze_nivel"]   = sq["squeeze_nivel"]
+        signal["short_float_pct"] = sq["short_float_pct"]
+        signal["days_to_cover"]   = sq["days_to_cover"]
+        signal["borrow_fee"]      = sq["borrow_fee"]
+        signal["available"]       = sq["available"]
+        signal["squeeze_flags"]   = sq["flags"]
+
+    except Exception as e:
+        print(f"  [SQUEEZE] Erro enrich {ticker}: {e}", flush=True)
+        signal["squeeze_score"] = 0
+        signal["squeeze_nivel"] = "⚪ ERRO"
+
+    return signal
+
+
+def get_top_squeeze_candidates(tickers: list, min_score: int = 30, delay: float = 0.3) -> list:
+    """
+    Filtra uma lista de tickers e devolve os melhores candidatos a squeeze.
+    Usa delay entre chamadas para não sobrecarregar as APIs.
+
+    Args:
+        tickers: lista de tickers a analisar
+        min_score: score mínimo para incluir (default 30)
+        delay: segundos entre chamadas (default 0.3s)
+
+    Returns:
+        lista ordenada por squeeze_score descendente
+    """
+    candidates = []
+
+    for i, ticker in enumerate(tickers):
+        try:
+            sq = calc_squeeze_score(ticker)
+            if sq["squeeze_score"] >= min_score:
+                candidates.append(sq)
+                print(f"  [SQUEEZE] {ticker}: score={sq['squeeze_score']} | {sq['squeeze_nivel']}", flush=True)
+        except Exception as e:
+            print(f"  [SQUEEZE] Erro {ticker}: {e}", flush=True)
+
+        if delay and i % 10 == 9:
+            time.sleep(delay)
+
+    return sorted(candidates, key=lambda x: x["squeeze_score"], reverse=True)
+
+
+# ── TESTE RÁPIDO ─────────────────────────────────────────
+if __name__ == "__main__":
+    tickers_teste = ["HIMS", "GME", "AMC", "BBBY", "TSLA"]
+
+    print("\n=== SQUEEZE OVERLAY — TESTE ===\n")
+    for ticker in tickers_teste:
+        sq = calc_squeeze_score(ticker)
+        print(f"{ticker:6} | Score: {sq['squeeze_score']:3}/100 | {sq['squeeze_nivel']}")
+        print(f"       | SI%: {sq['short_float_pct']}% | DTC: {sq['days_to_cover']} | Borrow: {sq['borrow_fee']}% | Available: {sq['available']}")
+        print(f"       | Flags: {sq['flags']}")
+        print()
+        time.sleep(0.5)

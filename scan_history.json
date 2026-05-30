@@ -1,0 +1,83 @@
+[
+  {
+    "date": "2026-05-25",
+    "time": "13:11",
+    "total_long": 21,
+    "total_short": 13,
+    "total_aguardar": 19,
+    "top_long": [
+      {
+        "ticker": "SATL",
+        "score_100": 57,
+        "rs_pct": 220.36
+      },
+      {
+        "ticker": "QBTS",
+        "score_100": 57,
+        "rs_pct": 48.75
+      },
+      {
+        "ticker": "QUBT",
+        "score_100": 57,
+        "rs_pct": 43.31
+      },
+      {
+        "ticker": "RGTI",
+        "score_100": 56,
+        "rs_pct": 51.97
+      },
+      {
+        "ticker": "IONQ",
+        "score_100": 53,
+        "rs_pct": 92.4
+      },
+      {
+        "ticker": "PL",
+        "score_100": 53,
+        "rs_pct": 70.98
+      },
+      {
+        "ticker": "OSCR",
+        "score_100": 48,
+        "rs_pct": 75.47
+      },
+      {
+        "ticker": "LUNR",
+        "score_100": 47,
+        "rs_pct": 94.01
+      },
+      {
+        "ticker": "VSAT",
+        "score_100": 47,
+        "rs_pct": 47.13
+      },
+      {
+        "ticker": "OKTA",
+        "score_100": 46,
+        "rs_pct": 21.05
+      }
+    ],
+    "top_short": [
+      {
+        "ticker": "VRNS",
+        "score_100": 50
+      },
+      {
+        "ticker": "RPD",
+        "score_100": 43
+      },
+      {
+        "ticker": "CRSP",
+        "score_100": 43
+      },
+      {
+        "ticker": "CIVI",
+        "score_100": 42
+      },
+      {
+        "ticker": "KTOS",
+        "score_100": 41
+      }
+    ]
+  }
+]
