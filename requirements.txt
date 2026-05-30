@@ -4,3 +4,4 @@ pandas
 pandas_ta
 requests
 gunicorn
+yfinance
